@@ -1,6 +1,7 @@
 use gtk::prelude::*;
-use gtk::{
-    Application, ApplicationWindow, Button, FileChooserDialog, FileFilter,
+use gtk::
+{
+	Application, ApplicationWindow, Button, FileChooserDialog, FileFilter,
 };
 use std::cell::RefCell;
 
@@ -90,8 +91,8 @@ fn build_interface(app: &Application)
         }
     });
 
-    vbox.append(&btn_compress);
-    vbox.append(&btn_decompress);
+    vbox.pack_start(&btn_compress, false, false, 0);
+    vbox.pack_start(&btn_decompress, false, false, 0);
     window.set_child(Some(&vbox));
     window.show();
 }
