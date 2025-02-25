@@ -63,11 +63,6 @@ pub fn decompression(input_file: &str, output_file: &str)
 {
     let (sample_rate, spectrum) = load_compressed(input_file);
     let samples = apply_ifft(&spectrum);
-    println!(
-        "Avant normalisation - min: {}, max: {}",
-        samples.iter().copied().fold(f64::INFINITY, f64::min),
-        samples.iter().copied().fold(f64::NEG_INFINITY, f64::max)
-    );
 
     save(output_file, sample_rate, &samples);
 }
