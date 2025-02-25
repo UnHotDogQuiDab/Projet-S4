@@ -1,6 +1,8 @@
 mod algo;
 use gtk::Application;
-use crate::interface::interface::*;
+use gtk::prelude::ApplicationExt;
+use gtk::prelude::ApplicationExtManual;
+use projet_s4::interface::interface_gtk::build_interface;
 use crate::algo::compression::compression;
 use crate::algo::decompression::decompression;
 
@@ -9,10 +11,10 @@ use std::env;
 fn main() 
 {
 	let app = Application::builder()
-        .application_id("interface")
+        .application_id("com.example.interface")
         .build();
 
-    app.connect_activate(build_interface);
+    app.connect_activate(|app| build_interface(app));
     app.run();
 	
     let args: Vec<String> = env::args().collect();

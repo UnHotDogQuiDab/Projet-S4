@@ -4,21 +4,22 @@ use gtk::
 	Application, ApplicationWindow, Button, FileChooserDialog, FileFilter,
 };
 use std::cell::RefCell;
+use std::rc::Rc;
 
-fn build_interface(app: &Application) 
+pub fn build_interface(app: &Application) 
 {
-    let window = ApplicationWindow::builder()
-        .application(app)
-        .title("Audio Compressor/Decompressor")
-        .default_width(400)
-        .default_height(200)
-        .build();
+    let window = Rc::new(ApplicationWindow::builder()
+        	.application(app)
+        	.title("Audio Compressor/Decompressor")
+        	.default_width(400)
+        	.default_height(200)
+        	.build(),);
 
     let vbox = gtk::Box::new(gtk::Orientation::Vertical, 5);
     let btn_compress = Button::with_label("Compress audio file...");
     let btn_decompress = Button::with_label("Decompress audio file...");
 
-    let selected_file = RefCell::new(None);
+    let selected_file = Rc::new(RefCell::new(None));
 
     let open_file_dialog = |window: &ApplicationWindow, file_type: &str| 
 	{
@@ -60,39 +61,45 @@ fn build_interface(app: &Application)
         dialog.close();
         result
     };
+    
+    let window_clone = Rc::clone(&window);
+	let selected_file_clone = Rc::clone(&selected_file);
 
     //open file to compress
     btn_compress.connect_clicked(move |_| 
-	{
-        if let Some(path) = open_file_dialog(&window, "audio") 
-		{
-            *selected_file.borrow_mut() =
-                Some(path.to_string_lossy().into_owned());
-            println!("Compressing file: {} ...", path.display());
-        } 
-		else 
-		{
-            println!("No file selected.");
-        }
-    });
+    {
+    	if let Some(path) = open_file_dialog(&window_clone, "audio") 
+    	{
+        	*selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
+        	println!("Compressing file: {} ...", path.display());
+    	} 
+    	else 
+    	{
+        	println!("No file selected.");
+    	}
+	});
 
-    //open file to decompress
-    btn_decompress.connect_clicked(move |_| 
+	let window_clone = Rc::clone(&window);
+	let selected_file_clone = Rc::clone(&selected_file);
+
+	//open file to decompress
+	btn_decompress.connect_clicked(move |_| 
 	{
-        if let Some(path) = open_file_dialog(&window, "compressed") 
-		{
-            *selected_file.borrow_mut() =
-                Some(path.to_string_lossy().into_owned());
-            println!("Decompressing file: {} ...", path.display());
-        } 
-		else 
-		{
-            println!("No file selected.");
-        }
-    });
+    	if let Some(path) = open_file_dialog(&window_clone, "compressed") 
+    	{
+        	*selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
+        	println!("Decompressing file: {} ...", path.display());
+    	} 
+    	else 
+    	{
+        	println!("No file selected.");
+    	}
+	});
+
 
     vbox.pack_start(&btn_compress, false, false, 0);
     vbox.pack_start(&btn_decompress, false, false, 0);
-    window.set_child(Some(&vbox));
-    window.show();
+    window.add(&vbox);
+    window.show_all();
+    window.present();
 }
