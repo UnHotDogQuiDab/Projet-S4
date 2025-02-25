@@ -5,6 +5,8 @@ use gtk::
 };
 use std::cell::RefCell;
 use std::rc::Rc;
+use crate::algo::compression::compression;
+use crate::algo::decompression::decompression;
 
 pub fn build_interface(app: &Application) 
 {
@@ -38,9 +40,7 @@ pub fn build_interface(app: &Application)
         } 
 		else if file_type == "compressed" 
 		{
-            filter.add_pattern("*.zip");
-            filter.add_pattern("*.rar");
-            filter.add_pattern("*.tar.gz");
+            filter.add_pattern("*.txt");
             filter.set_name(Some("Compressed Files"));
         }
         dialog.add_filter(filter);
@@ -72,6 +72,8 @@ pub fn build_interface(app: &Application)
     	{
         	*selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
         	println!("Compressing file: {} ...", path.display());
+        	compression(path.to_str().unwrap(), "../test_files/compressed.txt");
+        	println!("Compressing file: Done.");	
     	} 
     	else 
     	{
@@ -89,6 +91,8 @@ pub fn build_interface(app: &Application)
     	{
         	*selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
         	println!("Decompressing file: {} ...", path.display());
+        	decompression(path.to_str().unwrap(), "../test_files/output.wav");
+        	println!("Decompressing file: Done.");
     	} 
     	else 
     	{
