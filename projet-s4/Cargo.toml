@@ -4,3 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+hound = "3.5.0"
+rustfft = "6.1.0"
+flate2 = "1.0"
