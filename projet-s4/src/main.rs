@@ -1,11 +1,20 @@
 mod algo;
-
+use gtk::Application;
+use crate::interface::interface::*;
 use crate::algo::compression::compression;
 use crate::algo::decompression::decompression;
+
 use std::env;
 
 fn main() 
 {
+	let app = Application::builder()
+        .application_id("interface")
+        .build();
+
+    app.connect_activate(build_interface);
+    app.run();
+	
     let args: Vec<String> = env::args().collect();
     
     if args.len() < 3 
