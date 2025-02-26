@@ -1,4 +1,127 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        function showSection(id) {
+            if (document.querySelectorAll('.modal:not(.hidden)')[0]) {
+                // Si une fenêtre modale est ouverte, on ouvre la modale correspondante
+                showModal('modal' + id.charAt(0).toUpperCase() + id.slice(1));
+            } else {
+                // Sinon, on affiche la section normale
+                document.querySelectorAll('.section').forEach(section => section.classList.add('hidden'));
+                document.getElementById(id).classList.remove('hidden');
+            }
+        }
+
+        function showModal(id) {
+            document.querySelectorAll('.modal').forEach(modal => modal.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+    </script>
+</head>
+<body class="bg-blue-300 flex flex-col items-center justify-center min-h-screen"> 
+    <nav class="bg-blue-500 shadow-md w-full py-4 flex justify-center gap-6 fixed top-0 z-50"> 
+        <button onclick="showSection('equipe')" class="text-gray-700 hover:text-amber-700 font-semibold transition duration-300">L'équipe</button>
+        <button onclick="showSection('details')" class="text-gray-700 hover:text-amber-700 font-semibold transition duration-300">Détails du projet</button>
+        <button onclick="showSection('bibliotheques')" class="text-gray-700 hover:text-amber-700 font-semibold transition duration-300">Bibliothèques utilisées</button>
+    </nav>
+    
+    <div class="mt-20 text-6xl font-bold text-gray-700">The Way Finders</div> 
+    
+    <div class="flex flex-col items-center mt-6">
+        <h1 class="text-2xl font-bold text-center w-[520px] text-gray-800 mb-6">
+            Notre logiciel permet de compresser et de décompresser des fichiers audio, permettant de les déplacer ou de les stocker facilement avec peu de perte audio
+        </h1> 
+        <a href="projet-s4.zip" download class="bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg hover:bg-blue-600 font-semibold transition duration-300 transform hover:scale-105">
+            Télécharger le projet
+        </a>
+    </div>
+
+    <div id="equipe" class="section hidden mt-20 p-6 bg-blue-500 text-black shadow-lg rounded-lg w-3/4 text-center">
+        <h2 class="text-2xl font-semibold mb-4">L'équipe</h2>
+        <p>L'équipe des way finders s'est reconvertie en wave finders et travaille désormais sur des fichiers audios.</p>
+        <button onclick="showModal('modalEquipe')" class="mt-4 bg-blue-300 text-gray-800 font-bold px-4 py-2 rounded-md shadow-md hover:bg-gray-400 transition">
+            Voir plus
+        </button>
+    </div>
+    
+    <div id="details" class="section hidden mt-20 p-6 bg-blue-500 text-black shadow-lg rounded-lg w-3/4 text-center">
+        <h2 class="text-2xl font-semibold mb-4">Détails du projet</h2>
+        <p>Notre projet est un logiciel d’édition audio et d'enregistrement, pour l'instant capable de compresser et de décompresser des fichiers audios.</p>
+        <button onclick="showModal('modalDetails')" class="mt-4 bg-blue-300 text-gray-800 font-bold px-4 py-2 rounded-md shadow-md hover:bg-gray-400 transition">
+            Voir plus
+        </button>
+    </div>
+    
+    <div id="bibliotheques" class="section hidden mt-20 p-6 bg-blue-500 text-black shadow-lg rounded-lg w-3/4 text-center">
+        <h2 class="text-2xl font-semibold mb-4">Bibliothèques utilisées</h2>
+        <p>Liste des bibliothèques utilisées dans le projet.</p>
+        <button onclick="showModal('modalBibliotheques')" class="mt-4 bg-blue-300 text-gray-800 font-bold px-4 py-2 rounded-md shadow-md hover:bg-gray-400 transition">
+            Voir plus
+        </button>
+    </div>
+
+    <div id="modalEquipe" class="modal hidden fixed top-16 left-0 right-0 bottom-0 bg-blue-300 flex items-center justify-center">
+    <div class="bg-blue-300 w-full h-full p-6 relative">
+        <button onclick="closeModal('modalEquipe')" class="absolute top-4 right-4 text-gray-700 text-3xl font-bold">&times;</button>
+        <h2 class="text-3xl font-bold text-gray-800 mb-4 text-center">L'équipe</h2>
+        <h3 class="text-2xl font-semibold text-gray-800 mb-4 text-center">The Way Finders</h3>
+        <p class="text-lg text-center mb-6">The Way Finders est une entreprise fictive créée dans le cadre de ce projet. Elle regroupe une équipe de quatre étudiants passionnés par le développement logiciel et les technologies de traitement du signal. Notre mission est de concevoir des solutions performantes et innovantes en réponse aux défis posés par la manipulation des fichiers audio.</p>
+        <h4 class="text-xl font-semibold text-gray-800 mb-4 text-center">Les membres de l’équipe</h4>
+        <p class="text-lg text-center">Notre équipe est composée de Sacha VILLEPREUX-PETIT, qui assure le rôle de chef de projet et qui s'est occupé dans un premier temps du site web. Yanis DALI a participé à la réalisation de l'interface. Arsène HIRIART est en charge de l'algorithme de compression et de decompression. Enfin, Finaritra RAHARINESY est responsable de l'interface graphique et de la connection entre algorithme et interface.</p>
+        <p class="text-lg text-center mb-6">Chaque membre apporte son expertise dans son domaine, et la collaboration étroite entre les différents pôles garantit une progression fluide et cohérente du projet.</p>
+    </div>
+</div>
+
+    <div id="modalDetails" class="modal hidden fixed top-16 left-0 right-0 bottom-0 bg-blue-300 flex items-center justify-center">
+    <div class="bg-blue-300 w-full h-full p-6 relative overflow-y-auto max-h-[80vh] scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-300">
+        <button onclick="closeModal('modalDetails')" class="absolute top-4 right-4 text-gray-700 text-3xl font-bold">&times;</button>
+        <h2 class="text-3xl font-bold text-gray-800 mb-4 text-center">Détails du projet</h2>
+        <h3 class="text-2xl font-semibold text-gray-800 mb-4 text-center">Compression audio et transformation de Fourier</h3>
+        <p class="text-lg text-center mb-6">La compression audio repose sur des méthodes permettant de réduire la taille des fichiers tout en préservant au mieux leur qualité sonore. L'un des outils les plus efficaces dans ce domaine est la transformation de Fourier, qui permet de décomposer un signal audio en une somme de sinusoïdes de fréquences différentes. Cette technique est particulièrement utile pour identifier les parties d’un signal qui sont importantes pour la perception sonore humaine et celles qui peuvent être ignorées sans altérer la qualité perçue du son.</p>
+        <p class="text-lg text-center mb-6">La transformation de Fourier (TF) est une méthode mathématique qui permet de convertir un signal du domaine temporel, où il est représenté par des valeurs successives mesurées dans le temps, vers le domaine fréquentiel, où le signal est représenté par ses différentes fréquences constitutives. Cette transformation est définie par la formule suivante :</p>
+        <p class="text-lg text-center mb-6">𝑋(𝑓) = ∫<sub>-∞</sub><sup>∞</sup> 𝑥(𝑡)e<sup>-2π𝑖𝑓𝑡</sup> 𝑑𝑡</p>
+        <p class="text-lg text-center mb-6">Dans cette expression, 𝑋(𝑓) représente le signal transformé dans le domaine fréquentiel, 𝑥(𝑡) est le signal dans le domaine temporel, et 𝑓 est la fréquence. La transformation de Fourier permet ainsi de passer du temps au domaine fréquentiel, fournissant une représentation plus riche du signal en termes de ses différentes composantes fréquentielles.</p>
+        <p class="text-lg text-center mb-6">Une fois que le signal audio est transformé en fréquences à l’aide de la transformation de Fourier, il est possible de réduire sa taille de manière significative. En effet, une grande partie de l’énergie du signal audio peut être concentrée dans une petite gamme de fréquences, tandis que d'autres fréquences peuvent être peu ou pas perceptibles par l'oreille humaine. Cela ouvre la voie à plusieurs stratégies de compression, comme la suppression des fréquences les moins significatives ou leur réduction de précision.</p>
+        <p class="text-lg text-center mb-6">Les fichiers audio, en particulier ceux contenant de la musique ou de la parole, ont souvent une large gamme de fréquences, mais certaines de ces fréquences sont moins importantes pour l’auditeur. Par exemple, les fréquences très élevées (au-delà de 20 kHz) sont généralement inaudibles pour l’oreille humaine et peuvent donc être supprimées sans impact perceptible sur la qualité sonore. La transformation de Fourier permet de localiser ces fréquences non nécessaires et de les éliminer.</p>
+        <p class="text-lg text-center mb-6">Une fois que le signal audio a été transformé dans le domaine fréquentiel, il est possible de le compresser en manipulant les coefficients de la transformation. La compression peut prendre plusieurs formes, comme l’élimination des hautes fréquences, la quantification des coefficients, ou le codage des coefficients. L’élimination des hautes fréquences supprime les fréquences au-delà de la portée de l'audition humaine, typiquement au-delà de 20 kHz. La quantification des coefficients consiste à réduire la précision des différentes fréquences, permettant ainsi de diminuer l’espace de stockage nécessaire. Enfin, les coefficients restants peuvent être codés de manière efficace en utilisant des techniques comme le codage entropique, par exemple le codage Huffman, ce qui réduit encore la taille des données.</p>
+        <p class="text-lg text-center mb-6">La compression audio utilisant la transformation de Fourier est particulièrement adaptée aux formats de compression avec perte, comme le MP3. Dans ces formats, certaines informations sont volontairement éliminées pour atteindre un taux de compression élevé, sans que la perte ne soit perçue par l'auditeur.</p>
+        <p class="text-lg text-center mb-6">Le processus inverse de la transformation de Fourier, appelé transformée de Fourier inverse (TFI), permet de reconstruire le signal à partir de ses composants fréquentiels. La décompression d'un fichier audio consiste à utiliser les coefficients de la transformation de Fourier (qui ont été compressés) pour reconstruire une approximation du signal original dans le domaine temporel. En fonction du taux de compression et des informations perdues, cette reconstruction peut être plus ou moins fidèle au signal d'origine. Dans le cas des compressions avec perte, des artefacts peuvent être présents, mais ils sont souvent inaudibles.</p>
+        <p class="text-lg text-center mb-6">La décompression repose sur la formule de la transformée inverse, qui est la suivante :</p>
+        <p class="text-lg text-center mb-6">𝑥(𝑡) = ∫<sub>-∞</sub><sup>∞</sup> 𝑋(𝑓)e<sup>2π𝑖𝑓𝑡</sup> 𝑑𝑓</p>
+        <p class="text-lg text-center mb-6">Ainsi, le signal compressé est reconstruit dans le domaine temporel à partir des données transformées, en utilisant les coefficients restants et leur information de fréquence. Cette méthode permet de restaurer une version approximée du signal original.</p>
+        <p class="text-lg text-center mb-6">L’utilisation de la transformation de Fourier pour la compression audio présente plusieurs avantages significatifs. Elle permet une réduction substantielle de la taille des fichiers en se concentrant sur les fréquences importantes et en éliminant celles qui sont inaudibles. De plus, la compression peut être réalisée avec une perte minimale de qualité perceptible. En éliminant les informations inutiles tout en préservant l’essentiel, la transformation de Fourier garantit une compression efficace sans compromettre l’expérience auditive. Enfin, sa flexibilité permet de combiner cette méthode avec d'autres techniques de compression, comme la quantification et le codage, pour atteindre des taux de compression encore plus élevés.</p>
+        <p class="text-lg text-center mb-6">Cette approche est au cœur de nombreux formats audio modernes, tels que le MP3, l’AAC et le FLAC, qui offrent un bon compromis entre réduction de la taille des fichiers et qualité sonore. La transformation de Fourier joue ainsi un rôle central dans la gestion efficace des fichiers audio numériques.</p>
+    </div>
+</div>
+
+
+    <div id="modalBibliotheques" class="modal hidden fixed top-16 left-0 right-0 bottom-0 bg-blue-300 flex items-center justify-center">
+    <div class="bg-blue-300 w-full h-full p-6 relative overflow-y-auto max-h-[80vh] scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-300">
+        <button onclick="closeModal('modalBibliotheques')" class="absolute top-4 right-4 text-gray-700 text-3xl font-bold">&times;</button>
+        <h2 class="text-3xl font-bold text-gray-800 mb-4 text-center">Bibliothèques utilisées</h2>
+        <p class="text-lg text-center">gtk = "0.18"</p>
+        <p class="text-lg text-center">glib = "0.18"</p>
+        <p class="text-lg text-center">hound = "3.5.0"</p>
+        <p class="text-lg text-center">rustfft = "6.1.0"</p>
+        <p class="text-lg text-center">flate2 = "1.0"</p>
+    </div>
+</div>
+
+
+
+</body>
+</html>
+
+<!-- <!DOCTYPE html>
 <html>
 <head>
 <title>Projet les way finders</title>
@@ -15,3 +138,4 @@
 
 </body>
 </html> 
+-->
