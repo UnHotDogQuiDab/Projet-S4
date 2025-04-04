@@ -59,7 +59,7 @@ fn save(filename: &str, sample_rate: u32, samples: &[f64])
     }
 }
 
-pub fn decompression(input_file: &str, output_file: &str) 
+pub fn main(input_file: &str, output_file: &str) 
 {
     let (sample_rate, spectrum) = load_compressed(input_file);
     let samples = apply_ifft(&spectrum);
