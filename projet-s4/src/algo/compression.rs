@@ -66,7 +66,7 @@ pub fn save_compressed(filename: &str, sample_rate: u32, spectrum: &[Complex<f64
     encoder.finish().unwrap();
 }
 
-pub fn compression(input_file: &str, output_file: &str) 
+pub fn main(input_file: &str, output_file: &str) 
 {
     let (sample_rate, samples) = load(input_file);
     let mut spectrum = apply_fft(&samples);
