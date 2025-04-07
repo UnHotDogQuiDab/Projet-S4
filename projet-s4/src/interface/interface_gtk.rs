@@ -23,7 +23,7 @@ use gtk::ProgressBar;
 //only for getting path
 use std::env;
 use std::path::PathBuf;
-use std::path::Path;
+//use std::path::Path;
 fn get_current_directory() -> PathBuf 
 {
     env::current_dir().expect("Failed to get current directory")
@@ -112,80 +112,44 @@ pub fn build_interface(app: &Application)
 
 
     //playsound
-    
-   
+    let btn_play = Button::with_label("play audio...");
+let window_clone = Rc::clone(&window);
+let selected_file_clone = Rc::clone(&selected_file);
 
-    let play_button = Button::with_label("Play Sound");
+btn_play.connect_clicked(move |_| {
+    if let Some(path) = open_file_dialog(&window_clone, "audio") {
+        *selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
+        println!("Playing audio file: {} ...", path.display());
 
-play_button.connect_clicked(move |_| {
-    let audio_window = ApplicationWindow::builder()
-        .title("Audio Player")
-        .default_width(600)
-        .default_height(400)
-        .build();
+        std::thread::spawn({
+            let path = path.clone();
+            move || {
+                use rodio::{Decoder, OutputStream, Source};
+                use std::fs::File;
+                use std::io::BufReader;
 
-    let vbox = gtk::Box::new(gtk::Orientation::Vertical, 10);
-    let select_button = Button::with_label("Select and Play Audio");
+                let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+                let file = File::open(&path).unwrap();
+                let reader = BufReader::new(file);
+                let source = Decoder::new(reader).unwrap();
+                let stream = source.convert_samples();
 
-    let progress_bar = ProgressBar::new();
-        //gtk::Scale::with_range(gtk::Orientation::Horizontal, 0.0, 100.0, 1.0);
-    progress_bar.set_draw_value(false);
-    progress_bar.set_visible(false);
+                // Lancer la lecture audio
+                stream_handle.play_raw(stream).unwrap();
 
-    let pause_button = Button::with_label("Pause/Resume");
-    pause_button.set_visible(false);
-
-    vbox.pack_start(&select_button, false, false, 0);
-    vbox.pack_start(&progress_bar, false, false, 0);
-    vbox.pack_start(&pause_button, false, false, 0);
-    audio_window.set_child(Some(&vbox));
-
-    select_button.connect_clicked({
-        let progress_bar = progress_bar.clone();
-        let pause_button = pause_button.clone();
-        let audio_window = audio_window.clone();
-        move |_| {
-            let dialog = FileChooserDialog::new(
-                Some("Choose Audio File"),
-                Some(&audio_window),
-                gtk::FileChooserAction::Open,
-            );
-
-            let filter = FileFilter::new();
-            filter.add_mime_type("audio/*");
-            filter.set_name(Some("Audio Files"));
-            dialog.add_filter(filter);
-
-            dialog.add_buttons(&[
-                ("Open", gtk::ResponseType::Accept),
-                ("Cancel", gtk::ResponseType::Cancel),
-            ]);
-
-            if dialog.run() == gtk::ResponseType::Accept {
-                if let Some(file) = dialog.file().and_then(|f| f.path()) {
-                    println!("Playing: {}", file.display());
-
-                    crate::interface::play_sound::create_audio_player(
-                        file.to_str().unwrap(),
-                        &progress_bar,
-                    );
-
-                    progress_bar.set_visible(true);
-                    pause_button.set_visible(true);
+                // Garder le thread en vie pendant la lecture
+                loop {
+                    std::thread::sleep(std::time::Duration::from_secs(1));  // Attendre pour maintenir le thread actif
                 }
             }
-            dialog.close();
-        }
-    });
+        });
 
-    pause_button.connect_clicked(move |_| {
-        crate::interface::play_sound::toggle_pause_resume(&progress_bar);
-    });
-
-    audio_window.show();
+        println!("Playing file: Done.");
+    } else {
+        println!("No file selected.");
+    }
 });
-
-vbox.pack_start(&play_button, false, false, 0);
+    
     
     //playsound
 
@@ -202,15 +166,13 @@ vbox.pack_start(&play_button, false, false, 0);
         	*selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
         	println!("Compressing file: {} ...", path.display());
         	compression::main(path.to_str().unwrap(), "test_files/compressed.txt");
-<<<<<<< HEAD
-             
-=======
->>>>>>> 65f9f4a45426a529764cff0d9d15f9aec48e19d4
         	println!("Compressing file: Done.");	
     	} 
     	else 
-    	    	}
-	});
+        {
+        	println!("No file selected.");
+    	    }
+	    });
 
 	let window_clone = Rc::clone(&window);
 	let selected_file_clone = Rc::clone(&selected_file);
@@ -222,11 +184,7 @@ vbox.pack_start(&play_button, false, false, 0);
     	{
         	*selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
         	println!("Decompressing file: {} ...", path.display());
-        	decompression::main(path.to_str().unwrap(), "test_files/output.wav");
-<<<<<<< HEAD
-           
-=======
->>>>>>> 65f9f4a45426a529764cff0d9d15f9aec48e19d4
+        	decompression::main(path.to_str().unwrap(), "test_files/output.wav", 1.0);
         	println!("Decompressing file: Done.");
     	} 
     	else 
@@ -433,6 +391,7 @@ vbox.pack_start(&play_button, false, false, 0);
     vbox.pack_start(&btn_compress, false, false, 0);
     vbox.pack_start(&btn_decompress, false, false, 0);
     vbox.pack_start(&btn_edit, false, false, 0);
+    vbox.pack_start(&btn_play, false, false, 0);
     window.add(&vbox);
     window.show_all();
     window.present();
