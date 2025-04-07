@@ -16,6 +16,34 @@ use gtk::{Box as GtkBox, Orientation, Image, DrawingArea, Toolbar, ToolButton};
 use std::collections::VecDeque;
 use gtk::gdk::{EventButton, EventMask, ModifierType};
 
+//link to play_sound
+//use super::play_sound::create_audio_player;
+//use crate::interface::play_sound::create_audio_player;
+use gtk::ProgressBar;
+//only for getting path
+use std::env;
+use std::path::PathBuf;
+//use std::path::Path;
+fn get_current_directory() -> PathBuf 
+{
+    env::current_dir().expect("Failed to get current directory")
+}
+fn get_compressed_file_path() -> PathBuf {
+    //get_current_directory().join("src/test_files/compressed.txt")
+     Path::new("src/test_files/compressed.txt").to_path_buf()
+}
+
+fn get_decompressed_file_path() -> PathBuf {
+   // get_current_directory().join("src/test_files/output.wav")
+    Path::new("src/test_files/output.wav").to_path_buf()
+}
+
+
+
+//end of getting path
+
+
+
 pub fn build_interface(app: &Application) 
 {
     let window = Rc::new(ApplicationWindow::builder()
@@ -25,6 +53,10 @@ pub fn build_interface(app: &Application)
         	.default_height(200)
         	.build(),);
 
+
+    
+
+
     let vbox = gtk::Box::new(gtk::Orientation::Vertical, 5);
     let btn_compress = Button::with_label("Compress audio file...");
     let btn_decompress = Button::with_label("Decompress audio file...");
@@ -32,7 +64,7 @@ pub fn build_interface(app: &Application)
 	
     let selected_file = Rc::new(RefCell::new(None));
 
-    let open_file_dialog = |window: &ApplicationWindow, file_type: &str| 
+    let open_file_dialog = |window: &ApplicationWindow/*, file_type: &str*/| 
 	{
         let dialog = FileChooserDialog::new(
             Some("Select File"),
@@ -41,7 +73,7 @@ pub fn build_interface(app: &Application)
         );
 
         //filters
-        let filter = FileFilter::new();
+        /*let filter = FileFilter::new();
         if file_type == "audio" 
 		{
             filter.add_mime_type("audio/*");
@@ -58,7 +90,7 @@ pub fn build_interface(app: &Application)
             }
             }
         
-        dialog.add_filter(filter);
+        dialog.add_filter(filter);*/*/
 
         dialog.add_buttons(&[
             ("Open", gtk::ResponseType::Accept),
@@ -76,14 +108,60 @@ pub fn build_interface(app: &Application)
         dialog.close();
         result
     };
+
+
+
+    //playsound
+    let btn_play = Button::with_label("play audio...");
+let window_clone = Rc::clone(&window);
+let selected_file_clone = Rc::clone(&selected_file);
+
+btn_play.connect_clicked(move |_| {
+    if let Some(path) = open_file_dialog(&window_clone/*, "audio"*/) {
+        *selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
+        println!("Playing audio file: {} ...", path.display());
+
+        std::thread::spawn({
+            let path = path.clone();
+            move || {
+                use rodio::{Decoder, OutputStream, Source};
+                use std::fs::File;
+                use std::io::BufReader;
+
+                let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+                let file = File::open(&path).unwrap();
+                let reader = BufReader::new(file);
+                let source = Decoder::new(reader).unwrap();
+                let stream = source.convert_samples();
+
+                // Lancer la lecture audio
+                stream_handle.play_raw(stream).unwrap();
+
+                // Garder le thread en vie pendant la lecture
+                loop {
+                    std::thread::sleep(std::time::Duration::from_secs(1));  // Attendre pour maintenir le thread actif
+                }
+            }
+        });
+
+        println!("Playing file: Done.");
+    } else {
+        println!("No file selected.");
+    }
+});
     
+    
+    //playsound
+
     let window_clone = Rc::clone(&window);
 	let selected_file_clone = Rc::clone(&selected_file);
+
+
 
     //open file to compress
     btn_compress.connect_clicked(move |_| 
     {
-    	if let Some(path) = open_file_dialog(&window_clone, "audio") 
+    	if let Some(path) = open_file_dialog(&window_clone/*, "audio"*/) 
     	{
         	*selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
         	println!("Compressing file: {} ...", path.display());
@@ -91,10 +169,10 @@ pub fn build_interface(app: &Application)
         	println!("Compressing file: Done.");	
     	} 
     	else 
-    	{
+        {
         	println!("No file selected.");
-    	}
-	});
+    	    }
+	    });
 
 	let window_clone = Rc::clone(&window);
 	let selected_file_clone = Rc::clone(&selected_file);
@@ -102,11 +180,11 @@ pub fn build_interface(app: &Application)
 	//open file to decompress
 	btn_decompress.connect_clicked(move |_| 
 	{
-    	if let Some(path) = open_file_dialog(&window_clone, "compressed") 
+    	if let Some(path) = open_file_dialog(&window_clone/*, "compressed"*/) 
     	{
         	*selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
         	println!("Decompressing file: {} ...", path.display());
-        	decompression::main(path.to_str().unwrap(), "test_files/output.wav");
+        	decompression::main(path.to_str().unwrap(), "test_files/output.wav", 1.0);
         	println!("Decompressing file: Done.");
     	} 
     	else 
@@ -120,7 +198,7 @@ pub fn build_interface(app: &Application)
 
 	//Audio editor
 	btn_edit.connect_clicked(move |_| {
-    if let Some(path) = open_file_dialog(&window_clone, "audio") {
+    if let Some(path) = open_file_dialog(&window_clone/*, "audio"*/) {
         *selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
         println!("Editing audio file: {} ...", path.display());
 
@@ -313,6 +391,7 @@ pub fn build_interface(app: &Application)
     vbox.pack_start(&btn_compress, false, false, 0);
     vbox.pack_start(&btn_decompress, false, false, 0);
     vbox.pack_start(&btn_edit, false, false, 0);
+    vbox.pack_start(&btn_play, false, false, 0);
     window.add(&vbox);
     window.show_all();
     window.present();
