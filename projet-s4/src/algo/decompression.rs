@@ -72,8 +72,7 @@ fn resample(samples: &[f64], speed: f64) -> Vec<f64> {
         .collect()
 }
 
-
-pub fn decompression(input_file: &str, output_file: &str, speed: f64)
+pub fn main(input_file: &str, output_file: &str, speed: f64)
 {
     let samples = apply_ifft(&spectrum);
     let resampled = resample(&samples, speed);
