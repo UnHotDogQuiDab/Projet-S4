@@ -59,10 +59,25 @@ fn save(filename: &str, sample_rate: u32, samples: &[f64])
     }
 }
 
-pub fn decompression(input_file: &str, output_file: &str) 
+fn resample(samples: &[f64], speed: f64) -> Vec<f64> {
+    let new_len = (samples.len() as f64 / speed).round() as usize;
+    (0..new_len)
+        .map(|i| {
+            let index = i as f64 * speed;
+            let i0 = index.floor() as usize;
+            let i1 = (i0 + 1).min(samples.len() - 1);
+            let t = index - i0 as f64;
+            (1.0 - t) * samples[i0] + t * samples[i1]
+        })
+        .collect()
+}
+
+
+pub fn decompression(input_file: &str, output_file: &str, speed: f64)
 {
-    let (sample_rate, spectrum) = load_compressed(input_file);
     let samples = apply_ifft(&spectrum);
+    let resampled = resample(&samples, speed);
+    save(output_file, sample_rate, &resampled);
 
     save(output_file, sample_rate, &samples);
 }
