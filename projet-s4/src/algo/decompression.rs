@@ -38,7 +38,7 @@ fn apply_ifft(spectrum: &[Complex<f64>]) -> Vec<f64>
     buffer.iter().map(|c| c.re / scale).collect()
 }
 
-fn save(filename: &str, sample_rate: u32, samples: &[f64]) 
+fn save(filename: &str, sample_rate: u32, samples: &[f64], speed: f64) 
 {
     let max_val = samples.iter().copied().fold(f64::MIN, f64::max).max(1.0);
     let factor = 1.0 / max_val;
@@ -46,7 +46,7 @@ fn save(filename: &str, sample_rate: u32, samples: &[f64])
     let spec = hound::WavSpec 
     {
         channels: 1,
-        sample_rate,
+        sample_rate : (sample_rate as f64 * speed) as u32,
         bits_per_sample: 16,
         sample_format: hound::SampleFormat::Int,
     };
@@ -74,9 +74,11 @@ fn resample(samples: &[f64], speed: f64) -> Vec<f64> {
 
 pub fn main(input_file: &str, output_file: &str, speed: f64)
 {
+    let speed = speed * 2.0;
+    let (sample_rate, spectrum) = load_compressed(input_file);
     let samples = apply_ifft(&spectrum);
     let resampled = resample(&samples, speed);
-    save(output_file, sample_rate, &resampled);
+    save(output_file, sample_rate, &resampled, speed);
 
-    save(output_file, sample_rate, &samples);
+    save(output_file, sample_rate, &samples, speed);
 }

@@ -44,6 +44,7 @@ fn filter(spectrum: &mut Vec<Complex<f64>>, keep_ratio: f64)
 
 pub fn save_compressed(filename: &str, sample_rate: u32, spectrum: &[Complex<f64>]) 
 {
+    println!("{}", filename);
     let mut byte_data = Vec::new();
     byte_data.extend_from_slice(&sample_rate.to_le_bytes());
 
