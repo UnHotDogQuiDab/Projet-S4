@@ -1,8 +1,9 @@
 mod algo;
+mod interface;
 use gtk::Application;
 use gtk::prelude::ApplicationExt;
 use gtk::prelude::ApplicationExtManual;
-use projet_s4::interface::interface_gtk::build_interface;
+use interface::interface_gtk::build_interface;
 
 fn main() 
 {

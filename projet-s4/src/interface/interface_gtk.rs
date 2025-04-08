@@ -16,6 +16,34 @@ use gtk::{Box as GtkBox, Orientation, Image, DrawingArea, Toolbar, ToolButton};
 use std::collections::VecDeque;
 use gtk::gdk::{EventButton, EventMask, ModifierType};
 
+//link to play_sound
+//use super::play_sound::create_audio_player;
+//use crate::interface::play_sound::create_audio_player;
+use gtk::ProgressBar;
+//only for getting path
+use std::env;
+use std::path::PathBuf;
+//use std::path::Path;
+fn get_current_directory() -> PathBuf 
+{
+    env::current_dir().expect("Failed to get current directory")
+}
+fn get_compressed_file_path() -> PathBuf {
+    //get_current_directory().join("src/test_files/compressed.txt")
+     Path::new("src/test_files/compressed.txt").to_path_buf()
+}
+
+fn get_decompressed_file_path() -> PathBuf {
+   // get_current_directory().join("src/test_files/output.wav")
+    Path::new("src/test_files/output.wav").to_path_buf()
+}
+
+
+
+//end of getting path
+
+
+
 pub fn build_interface(app: &Application) 
 {
     let window = Rc::new(ApplicationWindow::builder()
@@ -24,6 +52,10 @@ pub fn build_interface(app: &Application)
         	.default_width(400)
         	.default_height(200)
         	.build(),);
+
+
+    
+
 
     let vbox = gtk::Box::new(gtk::Orientation::Vertical, 5);
     let btn_compress = Button::with_label("Compress audio file...");
@@ -76,9 +108,59 @@ pub fn build_interface(app: &Application)
         dialog.close();
         result
     };
+
+
+
+ /*   //playsound
+    let btn_play = Button::with_label("play audio...");
+let window_clone = Rc::clone(&window);
+let selected_file_clone = Rc::clone(&selected_file);
+{
+btn_play.connect_clicked(move |_|) {
+<<<<<<< HEAD
+    if let Some(path) = open_file_dialog(&window_clone/*, "audio"*/) {
+=======
+    if let Some(path) = open_file_dialog(&window_clone, "audio") {
+>>>>>>> 806a849d266db51c5ad937fe7b8e44d56b3c6ece
+        *selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
+        println!("Playing audio file: {} ...", path.display());
+
+        std::thread::spawn({
+            let path = path.clone();
+            move || {
+                use rodio::{Decoder, OutputStream, Source};
+                use std::fs::File;
+                use std::io::BufReader;
+
+                let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+                let file = File::open(&path).unwrap();
+                let reader = BufReader::new(file);
+                let source = Decoder::new(reader).unwrap();
+                let stream = source.convert_samples();
+
+                // Lancer la lecture audio
+                stream_handle.play_raw(stream).unwrap();
+
+                // Garder le thread en vie pendant la lecture
+                loop {
+                    std::thread::sleep(std::time::Duration::from_secs(1));  // Attendre pour maintenir le thread actif
+                }
+            }
+        });
+
+        println!("Playing file: Done.");
+    } else {
+        println!("No file selected.");
+    }
+};}}
     
+    
+    //playsound
+*/
     let window_clone = Rc::clone(&window);
 	let selected_file_clone = Rc::clone(&selected_file);
+
+
 
     //open file to compress
     btn_compress.connect_clicked(move |_| 
@@ -91,10 +173,10 @@ pub fn build_interface(app: &Application)
         	println!("Compressing file: Done.");	
     	} 
     	else 
-    	{
+        {
         	println!("No file selected.");
-    	}
-	});
+    	    }
+	    });
 
 	let window_clone = Rc::clone(&window);
 	let selected_file_clone = Rc::clone(&selected_file);
@@ -106,7 +188,7 @@ pub fn build_interface(app: &Application)
     	{
         	*selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
         	println!("Decompressing file: {} ...", path.display());
-        	decompression::main(path.to_str().unwrap(), "test_files/output.wav");
+        	decompression::main(path.to_str().unwrap(), "test_files/output.wav", 1.0);
         	println!("Decompressing file: Done.");
     	} 
     	else 
@@ -124,7 +206,6 @@ pub fn build_interface(app: &Application)
         *selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
         println!("Editing audio file: {} ...", path.display());
 
-        //new window
         let editor_window = ApplicationWindow::builder()
             .application(window_clone.application().as_ref().unwrap())
             .title("Audio Editor")
@@ -134,185 +215,244 @@ pub fn build_interface(app: &Application)
 
         let vbox_editor = GtkBox::new(Orientation::Vertical, 5);
 
-        //spectrogram
+        let drawing_area = DrawingArea::new();
+        drawing_area.set_size_request(800, 200);
+        drawing_area.set_events(
+            EventMask::BUTTON_PRESS_MASK
+                | EventMask::BUTTON_RELEASE_MASK
+                | EventMask::POINTER_MOTION_MASK,
+        );
+		let selection_overlay = Rc::new(RefCell::new(None::<(f64, f64)>));
         let image = Image::new();
         let output_img = "test_files/spectrogram.png";
         generate_waveform_image(path.to_str().unwrap(), output_img);
         image.set_from_file(Some(output_img));
 
-        //select zone
-        let selection = Rc::new(RefCell::new((None, None)));
         let undo_stack = Rc::new(RefCell::new(VecDeque::new()));
         let redo_stack = Rc::new(RefCell::new(VecDeque::new()));
         let current_audio_path = Rc::new(RefCell::new(path.to_string_lossy().into_owned()));
-
-        let drawing_area = DrawingArea::new();
-        drawing_area.set_size_request(800, 200);
-		drawing_area.set_events(EventMask::BUTTON_PRESS_MASK
-        | EventMask::BUTTON_RELEASE_MASK
-        | EventMask::POINTER_MOTION_MASK,);
 		
-        let sel_clone = Rc::clone(&selection);
-        drawing_area.connect_button_press_event(move |_, event| {
-            let x = event.position().0 as i32;
-            sel_clone.borrow_mut().0 = Some(x);
-            gtk::glib::Propagation::Proceed
-        });
-        
-        let sel_clone = Rc::clone(&selection);
-		drawing_area.connect_motion_notify_event(move |_, event| {
-			if event.state().contains(ModifierType::BUTTON1_MASK) {
-				let x = event.position().0 as i32;
-				sel_clone.borrow_mut().1 = Some(x);
-			}
-			gtk::glib::Propagation::Proceed
-		});
 
-        let sel_clone = Rc::clone(&selection);
-        drawing_area.connect_button_release_event(move |_, event| {
-            let x = event.position().0 as i32;
-            sel_clone.borrow_mut().1 = Some(x);
-            gtk::glib::Propagation::Proceed
-        });
+        //Selection area
+		{
+			let selection_overlay = Rc::clone(&selection_overlay);
+			drawing_area.connect_button_press_event(move |_, event| {
+				let x = event.position().0;
+				*selection_overlay.borrow_mut() = Some((x, x));
+				gtk::glib::Propagation::Proceed
+			});
+		}
+		{
+			let selection_overlay = Rc::clone(&selection_overlay);
+			drawing_area.connect_motion_notify_event(move |_, event| {
+				if event.state().contains(ModifierType::BUTTON1_MASK) {
+					let mut overlay = selection_overlay.borrow_mut();
+					if let Some((start, _)) = *overlay {
+						let x = event.position().0;
+						*overlay = Some((start, x));
+					}
+				}
+				gtk::glib::Propagation::Proceed
+			});
+		}
 
-        //toolbar
+		{
+			let selection_overlay = Rc::clone(&selection_overlay);
+			drawing_area.connect_button_release_event(move |area, _| {
+				area.queue_draw(); 
+				gtk::glib::Propagation::Proceed
+			});
+		}
+		{
+			let selection_overlay = Rc::clone(&selection_overlay);
+			drawing_area.connect_draw(move |widget, cr| {
+
+				if let Some((x1, x2)) = *selection_overlay.borrow() {
+					let (start, end) = if x1 < x2 { (x1, x2) } else { (x2, x1) };
+					let height = widget.allocated_height() as f64;
+					cr.set_source_rgba(0.2, 0.4, 1.0, 0.4); 
+					cr.rectangle(start, 0.0, end - start, height);
+					cr.fill().unwrap();
+				}
+
+				gtk::glib::Propagation::Proceed
+			});
+		}
+
+
+
+        // Toolbar
         let toolbar = Toolbar::new();
         let btn_cut = ToolButton::new(None::<&gtk::Widget>, Some("✂"));
         let btn_undo = ToolButton::new(None::<&gtk::Widget>, Some("↶"));
-		let btn_redo = ToolButton::new(None::<&gtk::Widget>, Some("↷"));
+        let btn_redo = ToolButton::new(None::<&gtk::Widget>, Some("↷"));
 
         toolbar.add(&btn_cut);
         toolbar.add(&btn_undo);
         toolbar.add(&btn_redo);
 
-        //cut
+        // CUT
         {
-            let selection = Rc::clone(&selection);
             let current_audio_path = Rc::clone(&current_audio_path);
             let undo_stack = Rc::clone(&undo_stack);
+            let redo_stack = Rc::clone(&redo_stack);
             let image = image.clone();
+            let drawing_area = drawing_area.clone();
+			let selection_overlay = Rc::clone(&selection_overlay);
 
             btn_cut.connect_clicked(move |_| {
                 let path = current_audio_path.borrow().clone();
-                let reader = hound::WavReader::open(&path).expect("open wav failed");
-                let samples: Vec<i16> = reader.into_samples::<i16>().filter_map(Result::ok).collect();
-                let sample_rate = 44100;
+                let mut reader = hound::WavReader::open(&path).expect("open wav failed");
+				let spec = reader.spec();
+				let sample_rate = spec.sample_rate;
+				let samples: Vec<i16> = reader.into_samples::<i16>().filter_map(Result::ok).collect();
 
-                let (start_px, end_px) = *selection.borrow();
+
+                let (start_px, end_px) = match *selection_overlay.borrow() {
+					Some((x1, x2)) => (Some(x1 as i32), Some(x2 as i32)),
+					None => (None, None),
+				};
+
                 if let (Some(mut start), Some(mut end)) = (start_px, end_px) {
                     if start > end {
                         std::mem::swap(&mut start, &mut end);
                     }
 
-                    let start_ratio = start as f32 / 800.0;
-                    let end_ratio = end as f32 / 800.0;
-                    let start_idx = (start_ratio * samples.len() as f32) as usize;
-                    let end_idx = (end_ratio * samples.len() as f32) as usize;
+                    let area_width = drawing_area.allocated_width();
+                    let start_idx = (start as f32 / area_width as f32 * samples.len() as f32) as usize;
+                    let end_idx = (end as f32 / area_width as f32 * samples.len() as f32) as usize;
+
+                    if start_idx >= end_idx || end_idx > samples.len() {
+                        println!("Invalid selection");
+                        return;
+                    }
 
                     undo_stack.borrow_mut().push_back(samples.clone());
+                    redo_stack.borrow_mut().clear(); // clear redo stack after new edit
 
                     let mut cut = samples.clone();
-                    cut.drain(start_idx..end_idx.min(cut.len()));
+                    cut.drain(start_idx..end_idx);
 
-                    let tmp_path = "test_files/edited_output.wav";
                     let spec = hound::WavSpec {
                         channels: 1,
-                        sample_rate: sample_rate as u32,
+                        sample_rate,
                         bits_per_sample: 16,
                         sample_format: hound::SampleFormat::Int,
                     };
 
-                    let mut writer = hound::WavWriter::create(tmp_path, spec).unwrap();
+                    let out_path = "test_files/edited_output.wav";
+                    let mut writer = hound::WavWriter::create(out_path, spec).unwrap();
                     for s in &cut {
                         writer.write_sample(*s).unwrap();
                     }
 
-                    *current_audio_path.borrow_mut() = tmp_path.to_string();
-                    generate_waveform_image(tmp_path, "test_files/spectrogram.png");
-                    image.clear();
+                    writer.finalize().unwrap();
+                    *current_audio_path.borrow_mut() = out_path.to_string();
+					*selection_overlay.borrow_mut() = None;
+					drawing_area.queue_draw();
+                    generate_waveform_image(out_path, "test_files/spectrogram.png");
                     image.set_from_file(Some("test_files/spectrogram.png"));
                     println!("Cut applied.");
                 }
             });
         }
 
-        //undo
+        // UNDO
         {
             let undo_stack = Rc::clone(&undo_stack);
             let redo_stack = Rc::clone(&redo_stack);
             let current_audio_path = Rc::clone(&current_audio_path);
             let image = image.clone();
+			let selection_overlay = Rc::clone(&selection_overlay);
+			let drawing_area = drawing_area.clone();
 
             btn_undo.connect_clicked(move |_| {
-                if let Some(prev) = undo_stack.borrow_mut().pop_back() {
-                    redo_stack.borrow_mut().push_back(prev.clone());
+			let path = current_audio_path.borrow().clone();
+			let mut reader = hound::WavReader::open(&path).expect("open wav failed");
+			let current_samples: Vec<i16> = reader.into_samples::<i16>().filter_map(Result::ok).collect();
 
-                    let tmp_path = "test_files/undo.wav";
-                    let spec = hound::WavSpec {
-                        channels: 1,
-                        sample_rate: 44100,
-                        bits_per_sample: 16,
-                        sample_format: hound::SampleFormat::Int,
-                    };
-                    let mut writer = hound::WavWriter::create(tmp_path, spec).unwrap();
-                    for s in &prev {
-                        writer.write_sample(*s).unwrap();
-                    }
+			if let Some(prev) = undo_stack.borrow_mut().pop_back() {
+				redo_stack.borrow_mut().push_back(current_samples); 
 
-                    *current_audio_path.borrow_mut() = tmp_path.to_string();
-                    generate_waveform_image_from_samples(&prev, "test_files/spectrogram.png");
-					image.set_from_file(Some("test_files/spectrogram.png"));
-                    println!("Undo applied.");
-                }
-            });
+				let spec = hound::WavSpec {
+					channels: 1,
+					sample_rate: 44100,
+					bits_per_sample: 16,
+					sample_format: hound::SampleFormat::Int,
+				};
+
+				let out_path = "test_files/edited_output.wav";
+				let mut writer = hound::WavWriter::create(out_path, spec).unwrap();
+				for s in &prev {
+					writer.write_sample(*s).unwrap();
+				}
+				writer.finalize().unwrap();
+
+				*current_audio_path.borrow_mut() = out_path.to_string();
+				*selection_overlay.borrow_mut() = None;
+				drawing_area.queue_draw();
+				generate_waveform_image(out_path, "test_files/spectrogram.png");
+				image.set_from_file(Some("test_files/spectrogram.png"));
+				image.queue_draw();
+				println!("Undo applied.");
+			}
+		});
+
         }
 
-        //redo
+        // REDO
         {
             let undo_stack = Rc::clone(&undo_stack);
             let redo_stack = Rc::clone(&redo_stack);
             let current_audio_path = Rc::clone(&current_audio_path);
             let image = image.clone();
+			let selection_overlay = Rc::clone(&selection_overlay);
+			let drawing_area = drawing_area.clone();
 
             btn_redo.connect_clicked(move |_| {
-                if let Some(next) = redo_stack.borrow_mut().pop_back() {
-                    undo_stack.borrow_mut().push_back(next.clone());
+				if let Some(next) = redo_stack.borrow_mut().pop_back() {
+					undo_stack.borrow_mut().push_back(next.clone());
 
-                    let tmp_path = "test_files/redo.wav";
-                    let spec = hound::WavSpec {
-                        channels: 1,
-                        sample_rate: 44100,
-                        bits_per_sample: 16,
-                        sample_format: hound::SampleFormat::Int,
-                    };
-                    let mut writer = hound::WavWriter::create(tmp_path, spec).unwrap();
-                    for s in &next {
-                        writer.write_sample(*s).unwrap();
-                    }
+					let spec = hound::WavSpec {
+						channels: 1,
+						sample_rate: 44100,
+						bits_per_sample: 16,
+						sample_format: hound::SampleFormat::Int,
+					};
 
-                    *current_audio_path.borrow_mut() = tmp_path.to_string();
-                    generate_waveform_image_from_samples(&next, "test_files/spectrogram.png");
-					image.clear();
+					let out_path = "test_files/edited_output.wav";
+					let mut writer = hound::WavWriter::create(out_path, spec).unwrap();
+					for s in &next {
+						writer.write_sample(*s).unwrap();
+					}
+					writer.finalize().unwrap();
+
+					*current_audio_path.borrow_mut() = out_path.to_string();
+					*selection_overlay.borrow_mut() = None;
+					drawing_area.queue_draw();
+					generate_waveform_image(out_path, "test_files/spectrogram.png");
 					image.set_from_file(Some("test_files/spectrogram.png"));
-                    println!("Redo applied.");
-                }
-            });
+					image.queue_draw(); 
+					println!("Redo applied.");
+				}
+			});
+
         }
 
-        vbox_editor.pack_start(&toolbar, false, false, 0);
         vbox_editor.pack_start(&drawing_area, false, false, 0);
         vbox_editor.pack_start(&image, true, true, 0);
+        vbox_editor.pack_start(&toolbar, false, false, 0);
         editor_window.add(&vbox_editor);
         editor_window.show_all();
-    } else {
-        println!("No file selected for editing.");
     }
 });
+
 
 
     vbox.pack_start(&btn_compress, false, false, 0);
     vbox.pack_start(&btn_decompress, false, false, 0);
     vbox.pack_start(&btn_edit, false, false, 0);
+    //vbox.pack_start(&btn_play, false, false, 0);
     window.add(&vbox);
     window.show_all();
     window.present();
