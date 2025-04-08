@@ -1,7 +1,7 @@
 use gtk::prelude::*;
 use gtk::
 {
-	Application, ApplicationWindow, Button, FileChooserDialog, FileFilter,
+	Application, ApplicationWindow, Button, FileChooserDialog, FileFilter, FileChooser
 };
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -111,17 +111,14 @@ pub fn build_interface(app: &Application)
 
 
 
- /*   //playsound
+ //playsound
     let btn_play = Button::with_label("play audio...");
 let window_clone = Rc::clone(&window);
 let selected_file_clone = Rc::clone(&selected_file);
 {
-btn_play.connect_clicked(move |_|) {
-<<<<<<< HEAD
-    if let Some(path) = open_file_dialog(&window_clone/*, "audio"*/) {
-=======
+btn_play.connect_clicked(move |_| {
+
     if let Some(path) = open_file_dialog(&window_clone, "audio") {
->>>>>>> 806a849d266db51c5ad937fe7b8e44d56b3c6ece
         *selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
         println!("Playing audio file: {} ...", path.display());
 
@@ -138,12 +135,12 @@ btn_play.connect_clicked(move |_|) {
                 let source = Decoder::new(reader).unwrap();
                 let stream = source.convert_samples();
 
-                // Lancer la lecture audio
+                //play
                 stream_handle.play_raw(stream).unwrap();
 
-                // Garder le thread en vie pendant la lecture
+                
                 loop {
-                    std::thread::sleep(std::time::Duration::from_secs(1));  // Attendre pour maintenir le thread actif
+                    std::thread::sleep(std::time::Duration::from_secs(1));  
                 }
             }
         });
@@ -152,11 +149,12 @@ btn_play.connect_clicked(move |_|) {
     } else {
         println!("No file selected.");
     }
-};}}
+});
+}
     
     
     //playsound
-*/
+
     let window_clone = Rc::clone(&window);
 	let selected_file_clone = Rc::clone(&selected_file);
 
@@ -182,20 +180,72 @@ btn_play.connect_clicked(move |_|) {
 	let selected_file_clone = Rc::clone(&selected_file);
 
 	//open file to decompress
-	btn_decompress.connect_clicked(move |_| 
-	{
-    	if let Some(path) = open_file_dialog(&window_clone, "compressed") 
-    	{
-        	*selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
-        	println!("Decompressing file: {} ...", path.display());
-        	decompression::main(path.to_str().unwrap(), "test_files/output.wav", 1.0);
-        	println!("Decompressing file: Done.");
-    	} 
-    	else 
-    	{
-        	println!("No file selected.");
-    	}
-	});
+	btn_decompress.connect_clicked(move |_| {
+        let dialog = FileChooserDialog::new(
+            Some("Select File"),
+            Some(&*window_clone),
+            gtk::FileChooserAction::Open,
+        );
+
+        let filter = FileFilter::new();
+        filter.add_pattern("*.txt");
+        filter.set_name(Some("Compressed Files"));
+        dialog.add_filter(filter);
+
+        dialog.add_buttons(&[
+            ("Open", gtk::ResponseType::Accept),
+            ("Cancel", gtk::ResponseType::Cancel),
+        ]);
+    
+        let selected_file_clone = selected_file_clone.clone();
+        let window_clone_inner = window_clone.clone();
+    
+        dialog.connect_response(move |file_dialog, response| {
+            if response == gtk::ResponseType::Accept {
+                if let Some(file) = file_dialog.filename() {
+                    *selected_file_clone.borrow_mut() = Some(file.to_string_lossy().into_owned());
+                    let path_str = file.to_str().unwrap().to_string();
+    
+                    file_dialog.close(); 
+    
+
+                    let speed_dialog = gtk::Dialog::with_buttons(
+                        Some("Set Speed Audio"),
+                        Some(&*window_clone_inner),
+                        gtk::DialogFlags::MODAL,
+                        &[("Enter", gtk::ResponseType::Ok), ("Cancel", gtk::ResponseType::Cancel)],
+                    );
+    
+                    let content_area = speed_dialog.content_area();
+                    let entry = gtk::Entry::new();
+                    entry.set_placeholder_text(Some("Ex: 2.0 for x2"));
+                    content_area.add(&entry);
+    
+                    speed_dialog.show_all();
+    
+                    speed_dialog.connect_response(move |dialog, response| {
+                        if response == gtk::ResponseType::Ok {
+                            let vitesse = entry.text().to_string();
+                            if let Ok(vitesse_f) = vitesse.parse::<f64>() {
+                                println!("Decompressing file: {} with {}x speed ...", path_str, vitesse_f);
+                                decompression::main(&path_str, "test_files/output.wav", vitesse_f);
+                                println!("Decompressing file: Done.");
+                            } else {
+                                println!("No valid entry.");
+                            }
+                        }
+                        dialog.close();
+                    });
+                }
+            } else {
+                file_dialog.close();
+            }
+        });
+    
+        dialog.show_all();
+    });
+    
+    
 	
 	let window_clone = Rc::clone(&window);
 	let selected_file_clone = Rc::clone(&selected_file);
@@ -286,6 +336,7 @@ btn_play.connect_clicked(move |_|) {
         let btn_cut = ToolButton::new(None::<&gtk::Widget>, Some("✂"));
         let btn_undo = ToolButton::new(None::<&gtk::Widget>, Some("↶"));
         let btn_redo = ToolButton::new(None::<&gtk::Widget>, Some("↷"));
+
 
         toolbar.add(&btn_cut);
         toolbar.add(&btn_undo);
@@ -452,7 +503,7 @@ btn_play.connect_clicked(move |_|) {
     vbox.pack_start(&btn_compress, false, false, 0);
     vbox.pack_start(&btn_decompress, false, false, 0);
     vbox.pack_start(&btn_edit, false, false, 0);
-    //vbox.pack_start(&btn_play, false, false, 0);
+    vbox.pack_start(&btn_play, false, false, 0);
     window.add(&vbox);
     window.show_all();
     window.present();
@@ -508,6 +559,6 @@ fn generate_waveform_image_from_samples(samples: &Vec<i16>, output_path: &str) {
         }
     }
 
-    img.save(output_path).expect("Failed to save waveform image");
+    img.save(output_path);//.expect("Failed to save waveform image");
 }
 
