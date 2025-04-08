@@ -7,6 +7,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use crate::algo::compression;
 use crate::algo::decompression;
+use crate::recording::recording;
+use crate::volume::volume;
 use hound;
 use std::fs::File;
 use std::io::BufWriter;
@@ -24,19 +26,6 @@ use gtk::ProgressBar;
 use std::env;
 use std::path::PathBuf;
 //use std::path::Path;
-fn get_current_directory() -> PathBuf 
-{
-    env::current_dir().expect("Failed to get current directory")
-}
-fn get_compressed_file_path() -> PathBuf {
-    //get_current_directory().join("src/test_files/compressed.txt")
-     Path::new("src/test_files/compressed.txt").to_path_buf()
-}
-
-fn get_decompressed_file_path() -> PathBuf {
-   // get_current_directory().join("src/test_files/output.wav")
-    Path::new("src/test_files/output.wav").to_path_buf()
-}
 
 
 
@@ -58,6 +47,7 @@ pub fn build_interface(app: &Application)
 
 
     let vbox = gtk::Box::new(gtk::Orientation::Vertical, 5);
+    let btn_record = Button::with_label("Record an audio...");
     let btn_compress = Button::with_label("Compress audio file...");
     let btn_decompress = Button::with_label("Decompress audio file...");
 	let btn_edit = Button::with_label("Edit audio...");
@@ -159,6 +149,25 @@ btn_play.connect_clicked(move |_| {
 	let selected_file_clone = Rc::clone(&selected_file);
 
 
+    //open recording
+    btn_record.connect_clicked(move |_| 
+        {
+            if let Some(path) = open_file_dialog(&window_clone, "Select output") 
+            {
+                *selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
+                let length = 10;
+                println!("Start recording: ...");
+                recording::record_wav(path.to_str().unwrap(), length);
+                println!("Recording: Done.");
+            } 
+            else 
+            {
+                println!("No file selected.");
+                }
+            });
+    
+        let window_clone = Rc::clone(&window);
+        let selected_file_clone = Rc::clone(&selected_file);
 
     //open file to compress
     btn_compress.connect_clicked(move |_| 
@@ -499,7 +508,7 @@ btn_play.connect_clicked(move |_| {
 });
 
 
-
+    vbox.pack_start(&btn_record, false, false, 0);
     vbox.pack_start(&btn_compress, false, false, 0);
     vbox.pack_start(&btn_decompress, false, false, 0);
     vbox.pack_start(&btn_edit, false, false, 0);

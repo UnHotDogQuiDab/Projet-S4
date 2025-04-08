@@ -4,6 +4,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 use std::io::stdin;
+use rodio::cpal;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use hound::{WavSpec, WavWriter, SampleFormat};
@@ -59,8 +60,7 @@ pub fn record_wav(output_path: &str, duration_secs: u64) -> Result<(), String> {
             },
             move |err| {
                 eprintln!("Stream error: {}", err);
-            },
-            None,
+            }
         ),
         _ => return Err("Unsupported sample format".into()),
     }.map_err(|e| e.to_string())?;
