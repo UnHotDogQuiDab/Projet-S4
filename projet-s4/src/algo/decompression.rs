@@ -74,6 +74,7 @@ fn resample(samples: &[f64], speed: f64) -> Vec<f64> {
 
 pub fn main(input_file: &str, output_file: &str, speed: f64)
 {
+    let (sample_rate, spectrum) = load_compressed(input_file);
     let samples = apply_ifft(&spectrum);
     let resampled = resample(&samples, speed);
     save(output_file, sample_rate, &resampled);
