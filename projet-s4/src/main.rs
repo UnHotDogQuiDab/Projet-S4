@@ -1,5 +1,7 @@
 mod algo;
 mod interface;
+mod recording;
+mod volume;
 use gtk::Application;
 use gtk::prelude::ApplicationExt;
 use gtk::prelude::ApplicationExtManual;
