@@ -1,25 +1,9 @@
-use hound::{WavReader, WavSpec, WavWriter, SampleFormat};
+use hound::{WavReader, WavWriter, SampleFormat};
 
-pub fn generate_low_volume_wav(path: &str) {
-    let spec = WavSpec {
-        channels: 1,
-        sample_rate: 44100,
-        bits_per_sample: 16,
-        sample_format: SampleFormat::Int,
-    };
-
-    let mut writer = WavWriter::create(path, spec).unwrap();
-
-    // 1 seconde de sinus faible
-    for t in 0..44100 {
-        let val = ((t as f32 * 440.0 * 2.0 * std::f32::consts::PI / 44100.0).sin() * i16::MAX as f32 * 0.1) as i16;
-        writer.write_sample(val).unwrap();
-    }
-}
 
 
 pub fn adjust_volume(input_path: &str, output_path: &str, factor: f32) -> Result<(), String> {
-    let mut reader = WavReader::open(input_path)
+    let reader = WavReader::open(input_path)
         .map_err(|_| "Failed to open WAV file".to_string())?;
     let spec = reader.spec();
 

@@ -1,7 +1,7 @@
 use gtk::prelude::*;
 use gtk::
 {
-	Application, ApplicationWindow, Button, FileChooserDialog, FileFilter, FileChooser
+	Application, ApplicationWindow, Button, FileChooserDialog, FileFilter,
 };
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -10,21 +10,17 @@ use crate::algo::decompression;
 use crate::recording::recording;
 use crate::volume::volume;
 use hound;
-use std::fs::File;
-use std::io::BufWriter;
-use std::path::Path;
 use image::{Rgb, RgbImage};
 use gtk::{Box as GtkBox, Orientation, Image, DrawingArea, Toolbar, ToolButton};
 use std::collections::VecDeque;
-use gtk::gdk::{EventButton, EventMask, ModifierType};
+use gtk::gdk::{EventMask, ModifierType};
 
 //link to play_sound
 //use super::play_sound::create_audio_player;
 //use crate::interface::play_sound::create_audio_player;
-use gtk::ProgressBar;
+
 //only for getting path
-use std::env;
-use std::path::PathBuf;
+
 //use std::path::Path;
 
 
@@ -47,10 +43,12 @@ pub fn build_interface(app: &Application)
 
 
     let vbox = gtk::Box::new(gtk::Orientation::Vertical, 5);
-    let btn_record = Button::with_label("Record an audio...");
+
     let btn_compress = Button::with_label("Compress audio file...");
     let btn_decompress = Button::with_label("Decompress audio file...");
 	let btn_edit = Button::with_label("Edit audio...");
+    let btn_volume = Button::with_label("Adjust volume...");
+    let btn_record = Button::with_label("Record an audio...");
 	
     let selected_file = Rc::new(RefCell::new(None));
 
@@ -148,22 +146,86 @@ btn_play.connect_clicked(move |_| {
     let window_clone = Rc::clone(&window);
 	let selected_file_clone = Rc::clone(&selected_file);
 
+    //open volume
+    btn_volume.connect_clicked(move |_| 
+        {
+            let dialog = FileChooserDialog::new(
+                Some("Select File"),
+                Some(&*window_clone),
+                gtk::FileChooserAction::Open,
+            );
+    
+            let filter = FileFilter::new();
+            filter.add_pattern("*.wav");
+            filter.set_name(Some("Wave Files"));
+            dialog.add_filter(filter);
+    
+            dialog.add_buttons(&[
+                ("Open", gtk::ResponseType::Accept),
+                ("Cancel", gtk::ResponseType::Cancel),
+            ]);
+        
+            let selected_file_clone = selected_file_clone.clone();
+            let window_clone_inner = window_clone.clone();
+        
+            dialog.connect_response(move |file_dialog, response| {
+                if response == gtk::ResponseType::Accept {
+                    if let Some(file) = file_dialog.filename() {
+                        *selected_file_clone.borrow_mut() = Some(file.to_string_lossy().into_owned());
+                        let path_str = file.to_str().unwrap().to_string();
+        
+                        file_dialog.close(); 
+        
+    
+                        let speed_dialog = gtk::Dialog::with_buttons(
+                            Some("Select Audio Volume"),
+                            Some(&*window_clone_inner),
+                            gtk::DialogFlags::MODAL,
+                            &[("Enter", gtk::ResponseType::Ok), ("Cancel", gtk::ResponseType::Cancel)],
+                        );
+        
+                        let content_area = speed_dialog.content_area();
+                        let entry = gtk::Entry::new();
+                        entry.set_placeholder_text(Some("Ex: 20.0 for very loud"));
+                        content_area.add(&entry);
+        
+                        speed_dialog.show_all();
+        
+                        speed_dialog.connect_response(move |dialog, response| {
+                            if response == gtk::ResponseType::Ok {
+                                let vitesse = entry.text().to_string();
+                                if let Ok(vitesse_f) = vitesse.parse::<f32>() {
+                                    println!("Adjusting audio: ...");
+                                    let _ = volume::adjust_volume(&path_str,"test_files/output.wav", vitesse_f);
+                                    println!("Adjust audio: Done.");
+                                } else {
+                                    println!("No valid entry.");
+                                }
+                            }
+                            dialog.close();
+                        });
+                    }
+                } else {
+                    file_dialog.close();
+                }
+            });
+        
+            dialog.show_all();
+        });
+    
+        let _window_clone = Rc::clone(&window);
+        let _selected_file_clone = Rc::clone(&selected_file);
 
     //open recording
     btn_record.connect_clicked(move |_| 
         {
-            if let Some(path) = open_file_dialog(&window_clone, "Select output") 
-            {
-                *selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
-                let length = 10;
-                println!("Start recording: ...");
-                recording::record_wav(path.to_str().unwrap(), length);
-                println!("Recording: Done.");
-            } 
-            else 
-            {
-                println!("No file selected.");
-                }
+            let output_path = "test_files/output.wav";
+            let duration_secs = 5;
+        
+            if let Err(e) = recording::record_wav(output_path, duration_secs) {
+                eprintln!("Erreur : {}", e);
+            }
+            
             });
     
         let window_clone = Rc::clone(&window);
@@ -316,7 +378,7 @@ btn_play.connect_clicked(move |_| {
 		}
 
 		{
-			let selection_overlay = Rc::clone(&selection_overlay);
+			let _selection_overlay = Rc::clone(&selection_overlay);
 			drawing_area.connect_button_release_event(move |area, _| {
 				area.queue_draw(); 
 				gtk::glib::Propagation::Proceed
@@ -362,7 +424,7 @@ btn_play.connect_clicked(move |_| {
 
             btn_cut.connect_clicked(move |_| {
                 let path = current_audio_path.borrow().clone();
-                let mut reader = hound::WavReader::open(&path).expect("open wav failed");
+                let reader = hound::WavReader::open(&path).expect("open wav failed");
 				let spec = reader.spec();
 				let sample_rate = spec.sample_rate;
 				let samples: Vec<i16> = reader.into_samples::<i16>().filter_map(Result::ok).collect();
@@ -428,7 +490,7 @@ btn_play.connect_clicked(move |_| {
 
             btn_undo.connect_clicked(move |_| {
 			let path = current_audio_path.borrow().clone();
-			let mut reader = hound::WavReader::open(&path).expect("open wav failed");
+			let reader = hound::WavReader::open(&path).expect("open wav failed");
 			let current_samples: Vec<i16> = reader.into_samples::<i16>().filter_map(Result::ok).collect();
 
 			if let Some(prev) = undo_stack.borrow_mut().pop_back() {
@@ -508,37 +570,18 @@ btn_play.connect_clicked(move |_| {
 });
 
 
-    vbox.pack_start(&btn_record, false, false, 0);
+
     vbox.pack_start(&btn_compress, false, false, 0);
     vbox.pack_start(&btn_decompress, false, false, 0);
     vbox.pack_start(&btn_edit, false, false, 0);
     vbox.pack_start(&btn_play, false, false, 0);
+    vbox.pack_start(&btn_record, false, false, 0);
+    vbox.pack_start(&btn_volume, false, false, 0);
     window.add(&vbox);
     window.show_all();
     window.present();
 }
 
-fn cut_audio(input_path: &str, output_path: &str, start_sec: f32, end_sec: f32) {
-    let reader = hound::WavReader::open(input_path).expect("Failed to open WAV");
-    let spec = reader.spec();
-    let samples: Vec<i16> = reader
-        .into_samples::<i16>()
-        .filter_map(Result::ok)
-        .collect();
-
-    let sample_rate = spec.sample_rate as usize;
-    let start_idx = (start_sec * sample_rate as f32) as usize;
-    let end_idx = (end_sec * sample_rate as f32) as usize;
-
-    let cut_samples = &samples[start_idx..end_idx.min(samples.len())];
-
-    let writer = hound::WavWriter::create(output_path, spec).expect("Failed to create WAV");
-    let mut writer = writer;
-
-    for &s in cut_samples {
-        writer.write_sample(s).unwrap();
-    }
-}
 
 fn generate_waveform_image(input_path: &str, output_path: &str) {
     let reader = hound::WavReader::open(input_path).expect("Failed to open WAV file");
@@ -568,6 +611,6 @@ fn generate_waveform_image_from_samples(samples: &Vec<i16>, output_path: &str) {
         }
     }
 
-    img.save(output_path);//.expect("Failed to save waveform image");
+    let _ = img.save(output_path);//.expect("Failed to save waveform image");
 }
 
