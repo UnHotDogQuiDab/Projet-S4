@@ -112,41 +112,105 @@ pub fn build_interface(app: &Application)
 
 
     //playsound
-    let btn_play = Button::with_label("play audio...");
+    use rodio::{Decoder, OutputStream, Source};
+use std::fs::File;
+use std::io::BufReader;
+use gtk::Button;
+use std::thread;
+use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::rc::Rc;
+
+let btn_play = Button::with_label("Play audio...");
+let btn_pause = Button::with_label("Pause audio...");
 let window_clone = Rc::clone(&window);
 let selected_file_clone = Rc::clone(&selected_file);
 
-btn_play.connect_clicked(move |_| {
-    if let Some(path) = open_file_dialog(&window_clone, "audio") {
-        *selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
-        println!("Playing audio file: {} ...", path.display());
+let is_playing = Arc::new(AtomicBool::new(false));
+let is_paused = Arc::new(AtomicBool::new(false));
+let playback_handle = Arc::new(Mutex::new(Option::<(Arc<Mutex<rodio::OutputStreamHandle>>, std::thread::JoinHandle<()>)>::None));
 
-        std::thread::spawn({
-            let path = path.clone();
-            move || {
-                use rodio::{Decoder, OutputStream, Source};
-                use std::fs::File;
-                use std::io::BufReader;
+btn_play.connect_clicked({
+    let is_playing = Arc::clone(&is_playing);
+    let is_paused = Arc::clone(&is_paused);
+    let playback_handle = Arc::clone(&playback_handle);
+    let window_clone = Rc::clone(&window);
+    let selected_file_clone = Rc::clone(&selected_file);
 
-                let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-                let file = File::open(&path).unwrap();
-                let reader = BufReader::new(file);
-                let source = Decoder::new(reader).unwrap();
-                let stream = source.convert_samples();
+    move |_| {
+        if let Some(path) = open_file_dialog(&window_clone, "audio") {
+            *selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
+            println!("Playing audio file: {} ...", path.display());
 
-                // Lancer la lecture audio
-                stream_handle.play_raw(stream).unwrap();
+            if is_playing.load(Ordering::SeqCst) {
+                println!("Audio is already playing.");
+            } else {
+                is_playing.store(true, Ordering::SeqCst);
+                is_paused.store(false, Ordering::SeqCst); // Reset pause state when starting to play
 
-                // Garder le thread en vie pendant la lecture
-                loop {
-                    std::thread::sleep(std::time::Duration::from_secs(1));  // Attendre pour maintenir le thread actif
-                }
+                thread::spawn({
+                    let path = path.clone();
+                    let is_playing = Arc::clone(&is_playing);
+                    let is_paused = Arc::clone(&is_paused);
+                    let playback_handle = Arc::clone(&playback_handle);
+                    move || {
+                        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+                        println!("Audio stream initialized.");  // Debugging point
+
+                        let file = File::open(&path).unwrap();
+                        let reader = BufReader::new(file);
+                        let source = Decoder::new(reader).unwrap();
+                        let stream = source.convert_samples::<f32>();
+
+                        // Wrap the stream handle in Arc<Mutex<>> so it can be shared safely
+                        let stream_handle = Arc::new(Mutex::new(stream_handle));
+
+                        // Save the stream handle and join handle so we can access them later
+                        {
+                            let mut handle_lock = playback_handle.lock().unwrap();
+                            *handle_lock = Some((Arc::clone(&stream_handle), std::thread::spawn(move || {
+                                println!("Starting playback..."); // Debugging point
+                                let stream_handle = stream_handle.lock().unwrap();
+                                stream_handle.play_raw(stream).unwrap();
+                                println!("Audio playback should be ongoing."); // Debugging point
+                                loop {
+                                    if is_paused.load(Ordering::SeqCst) {
+                                        std::thread::sleep(std::time::Duration::from_secs(1)); // Wait if paused
+                                    } else if !is_playing.load(Ordering::SeqCst) {
+                                        break; // Exit loop when no longer playing
+                                    }
+                                }
+                                println!("Playback finished or stopped.");
+                            })));
+                        }
+                    }
+                });
             }
-        });
+        } else {
+            println!("No file selected.");
+        }
+    }
+});
 
-        println!("Playing file: Done.");
-    } else {
-        println!("No file selected.");
+btn_pause.connect_clicked({
+    let is_playing = Arc::clone(&is_playing);
+    let is_paused = Arc::clone(&is_paused);
+    let playback_handle = Arc::clone(&playback_handle);
+
+    move |_| {
+        if is_playing.load(Ordering::SeqCst) {
+            if is_paused.load(Ordering::SeqCst) {
+                // Resume playback
+                is_paused.store(false, Ordering::SeqCst);
+                println!("Resuming playback...");
+            } else {
+                // Pause the playback
+                is_paused.store(true, Ordering::SeqCst);
+                println!("Pausing playback...");
+                
+                // We don't need to drop the stream handle, we just pause the loop above
+            }
+        }
     }
 });
     
@@ -392,6 +456,7 @@ btn_play.connect_clicked(move |_| {
     vbox.pack_start(&btn_decompress, false, false, 0);
     vbox.pack_start(&btn_edit, false, false, 0);
     vbox.pack_start(&btn_play, false, false, 0);
+    vbox.pack_start(&btn_pause, false, false, 0);
     window.add(&vbox);
     window.show_all();
     window.present();
