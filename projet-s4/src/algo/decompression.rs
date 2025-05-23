@@ -1,4 +1,4 @@
-interface/interface_gtk.rsuse hound;
+//interface/interface_gtk.rsuse hound;
 use rustfft::num_complex::Complex;
 use rustfft::FftPlanner;
 use std::fs::File;
@@ -80,5 +80,5 @@ pub fn main(input_file: &str, output_file: &str, speed: f64)
     let resampled = resample(&samples, speed);
     save(output_file, sample_rate, &resampled, speed);
 
-    save(output_file, sample_rate, &samples, speed);w
+    save(output_file, sample_rate, &samples, speed);
 }
