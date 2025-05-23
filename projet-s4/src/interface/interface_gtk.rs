@@ -100,48 +100,16 @@ pub fn build_interface(app: &Application)
 
 
  //playsound
-    let btn_play = Button::with_label("play audio...");
+ use crate::interface::play_sound::spawn_audio_player_window;   
+let btn_play= Button::with_label("Play Sound...");
+vbox.add(&btn_play);
+
 let window_clone = Rc::clone(&window);
-let selected_file_clone = Rc::clone(&selected_file);
-{
 btn_play.connect_clicked(move |_| {
-
-    if let Some(path) = open_file_dialog(&window_clone, "audio") {
-        *selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
-        println!("Playing audio file: {} ...", path.display());
-
-        std::thread::spawn({
-            let path = path.clone();
-            move || {
-                use rodio::{Decoder, OutputStream, Source};
-                use std::fs::File;
-                use std::io::BufReader;
-
-                let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-                let file = File::open(&path).unwrap();
-                let reader = BufReader::new(file);
-                let source = Decoder::new(reader).unwrap();
-                let stream = source.convert_samples();
-
-                //play
-                stream_handle.play_raw(stream).unwrap();
-
-                
-                loop {
-                    std::thread::sleep(std::time::Duration::from_secs(1));  
-                }
-            }
-        });
-
-        println!("Playing file: Done.");
-    } else {
-        println!("No file selected.");
-    }
-});
-}
-    
-    
-    //playsound
+    let player_window = spawn_audio_player_window(&window_clone, "test_files/output.wav");
+    player_window.show();
+});    
+//playsound
 
     let window_clone = Rc::clone(&window);
 	let selected_file_clone = Rc::clone(&selected_file);

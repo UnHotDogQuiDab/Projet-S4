@@ -14,4 +14,7 @@ image = "0.24"
 rodio = "0.14"
 gdk-pixbuf = "0.20.9"
 cairo = "0.0.4"
-
+gstreamer = "0.18"
+gstreamer-base = "0.18"
+gstreamer-audio = "0.18"
+gstreamer-player = "0.18"
