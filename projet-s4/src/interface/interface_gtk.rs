@@ -1,19 +1,29 @@
-use gtk::prelude::*;
-use gtk::
-{
-	Application, ApplicationWindow, Button, FileChooserDialog, FileFilter,
-};
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::fs::File;
+use std::io::BufReader;
 use crate::algo::compression;
 use crate::algo::decompression;
 use crate::recording::recording;
 use crate::volume::volume;
+use gtk::gdk::{EventMask, ModifierType};
+use gtk::prelude::*;
+use gtk::{Box as GtkBox, Orientation, Image, DrawingArea, Toolbar, ToolButton, Overlay, FileChooserAction};
+use gtk::{Dialog, DialogFlags, MessageType, ResponseType, Application, ApplicationWindow, Button, FileChooserDialog, FileFilter};
 use hound;
 use image::{Rgb, RgbImage};
-use gtk::{Box as GtkBox, Orientation, Image, DrawingArea, Toolbar, ToolButton};
+use std::cell::Cell; 
+use std::cell::RefCell;
 use std::collections::VecDeque;
-use gtk::gdk::{EventMask, ModifierType};
+use std::ops::ControlFlow::Continue;
+use std::path::Path;
+use std::rc::Rc;
+use std::thread;     
+use std::time::Duration; 
+use gstreamer as gst;
+use gst::prelude::*;
+use gstreamer::prelude::ObjectExt;
+use glib::clone;
+use std::sync::{Arc, Mutex};
+use glib::MainContext;
 
 //link to play_sound
 //use super::play_sound::create_audio_player;
@@ -33,22 +43,16 @@ pub fn build_interface(app: &Application)
 {
     let window = Rc::new(ApplicationWindow::builder()
         	.application(app)
-        	.title("Audio Compressor/Decompressor")
+        	.title("Audio File Manager")
         	.default_width(400)
         	.default_height(200)
         	.build(),);
 
-
-    
-
-
     let vbox = gtk::Box::new(gtk::Orientation::Vertical, 5);
 
-    let btn_compress = Button::with_label("Compress audio file...");
-    let btn_decompress = Button::with_label("Decompress audio file...");
-	let btn_edit = Button::with_label("Edit audio...");
-    let btn_volume = Button::with_label("Adjust volume...");
-    let btn_record = Button::with_label("Record an audio...");
+	let btn_edit = Button::with_label("Edit audio file...");
+	let btn_decompress = Button::with_label("Edit decompressed audio file...");
+    
 	
     let selected_file = Rc::new(RefCell::new(None));
 
@@ -97,124 +101,6 @@ pub fn build_interface(app: &Application)
         result
     };
 
-
-
- //playsound
- use crate::interface::play_sound::spawn_audio_player_window;   
-let btn_play= Button::with_label("Play Sound...");
-vbox.add(&btn_play);
-
-let window_clone = Rc::clone(&window);
-btn_play.connect_clicked(move |_| {
-    let player_window = spawn_audio_player_window(&window_clone, "test_files/output.wav");
-    player_window.show();
-});    
-//playsound
-
-    let window_clone = Rc::clone(&window);
-	let selected_file_clone = Rc::clone(&selected_file);
-
-    //open volume
-    btn_volume.connect_clicked(move |_| 
-        {
-            let dialog = FileChooserDialog::new(
-                Some("Select File"),
-                Some(&*window_clone),
-                gtk::FileChooserAction::Open,
-            );
-    
-            let filter = FileFilter::new();
-            filter.add_pattern("*.wav");
-            filter.set_name(Some("Wave Files"));
-            dialog.add_filter(filter);
-    
-            dialog.add_buttons(&[
-                ("Open", gtk::ResponseType::Accept),
-                ("Cancel", gtk::ResponseType::Cancel),
-            ]);
-        
-            let selected_file_clone = selected_file_clone.clone();
-            let window_clone_inner = window_clone.clone();
-        
-            dialog.connect_response(move |file_dialog, response| {
-                if response == gtk::ResponseType::Accept {
-                    if let Some(file) = file_dialog.filename() {
-                        *selected_file_clone.borrow_mut() = Some(file.to_string_lossy().into_owned());
-                        let path_str = file.to_str().unwrap().to_string();
-        
-                        file_dialog.close(); 
-        
-    
-                        let speed_dialog = gtk::Dialog::with_buttons(
-                            Some("Select Audio Volume"),
-                            Some(&*window_clone_inner),
-                            gtk::DialogFlags::MODAL,
-                            &[("Enter", gtk::ResponseType::Ok), ("Cancel", gtk::ResponseType::Cancel)],
-                        );
-        
-                        let content_area = speed_dialog.content_area();
-                        let entry = gtk::Entry::new();
-                        entry.set_placeholder_text(Some("Ex: 20.0 for very loud"));
-                        content_area.add(&entry);
-        
-                        speed_dialog.show_all();
-        
-                        speed_dialog.connect_response(move |dialog, response| {
-                            if response == gtk::ResponseType::Ok {
-                                let vitesse = entry.text().to_string();
-                                if let Ok(vitesse_f) = vitesse.parse::<f32>() {
-                                    println!("Adjusting audio: ...");
-                                    let _ = volume::adjust_volume(&path_str,"test_files/output.wav", vitesse_f);
-                                    println!("Adjust audio: Done.");
-                                } else {
-                                    println!("No valid entry.");
-                                }
-                            }
-                            dialog.close();
-                        });
-                    }
-                } else {
-                    file_dialog.close();
-                }
-            });
-        
-            dialog.show_all();
-        });
-    
-        let _window_clone = Rc::clone(&window);
-        let _selected_file_clone = Rc::clone(&selected_file);
-
-    //open recording
-    btn_record.connect_clicked(move |_| 
-        {
-            let output_path = "test_files/output.wav";
-            let duration_secs = 5;
-        
-            if let Err(e) = recording::record_wav(output_path, duration_secs) {
-                eprintln!("Erreur : {}", e);
-            }
-            
-            });
-    
-        let window_clone = Rc::clone(&window);
-        let selected_file_clone = Rc::clone(&selected_file);
-
-    //open file to compress
-    btn_compress.connect_clicked(move |_| 
-    {
-    	if let Some(path) = open_file_dialog(&window_clone, "audio") 
-    	{
-        	*selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
-        	println!("Compressing file: {} ...", path.display());
-        	compression::main(path.to_str().unwrap(), "test_files/compressed.txt");
-        	println!("Compressing file: Done.");	
-    	} 
-    	else 
-        {
-        	println!("No file selected.");
-    	    }
-	    });
-
 	let window_clone = Rc::clone(&window);
 	let selected_file_clone = Rc::clone(&selected_file);
 
@@ -238,7 +124,7 @@ btn_play.connect_clicked(move |_| {
     
         let selected_file_clone = selected_file_clone.clone();
         let window_clone_inner = window_clone.clone();
-    
+		let value = window_clone.clone();
         dialog.connect_response(move |file_dialog, response| {
             if response == gtk::ResponseType::Accept {
                 if let Some(file) = file_dialog.filename() {
@@ -261,16 +147,21 @@ btn_play.connect_clicked(move |_| {
                     content_area.add(&entry);
     
                     speed_dialog.show_all();
-    
+                    
+                    let app_clone = value.application().unwrap();
+					let value = selected_file_clone.clone();
                     speed_dialog.connect_response(move |dialog, response| {
                         if response == gtk::ResponseType::Ok {
                             let vitesse = entry.text().to_string();
                             if let Ok(vitesse_f) = vitesse.parse::<f64>() {
-                                println!("Decompressing file: {} with {}x speed ...", path_str, vitesse_f);
+                                println!("Decompressing file: {} with {}x speed ...", path_str, vitesse_f); // Log output
                                 decompression::main(&path_str, "test_files/output.wav", vitesse_f);
-                                println!("Decompressing file: Done.");
+                                println!("Decompressing file: Done."); 
+                                
+                                let output_path = Path::new("test_files/output.wav");
+								open_editor_window(output_path, &app_clone, Rc::clone(&value));
                             } else {
-                                println!("No valid entry.");
+                                println!("No valid entry."); 
                             }
                         }
                         dialog.close();
@@ -284,25 +175,44 @@ btn_play.connect_clicked(move |_| {
         dialog.show_all();
     });
     
-    
 	
 	let window_clone = Rc::clone(&window);
 	let selected_file_clone = Rc::clone(&selected_file);
-
-	//Audio editor
+	let value = window_clone.clone();
 	btn_edit.connect_clicked(move |_| {
     if let Some(path) = open_file_dialog(&window_clone, "audio") {
         *selected_file_clone.borrow_mut() = Some(path.to_string_lossy().into_owned());
         println!("Editing audio file: {} ...", path.display());
+    let app_clone = value.application().unwrap();
+    let value = selected_file_clone.clone();
+	let output_path = Path::new(&path);
+	open_editor_window(output_path, &app_clone, Rc::clone(&value));}});
 
-        let editor_window = ApplicationWindow::builder()
-            .application(window_clone.application().as_ref().unwrap())
-            .title("Audio Editor")
-            .default_width(800)
-            .default_height(500)
-            .build();
 
-        let vbox_editor = GtkBox::new(Orientation::Vertical, 5);
+	
+
+    vbox.pack_start(&btn_edit, false, false, 0);
+    vbox.pack_start(&btn_decompress, false, false, 0);
+    window.add(&vbox);
+    window.show_all();
+    window.present();
+}
+
+fn open_editor_window(path: &Path, app: &Application, selected_file: Rc<RefCell<Option<String>>>) {
+    let editor_window = ApplicationWindow::builder()
+        .application(app)
+        .title("Audio Editor")
+        .default_width(800)
+        .default_height(200)
+        .build();
+        
+    let vbox_editor = gtk::Box::new(gtk::Orientation::Vertical, 5);
+
+    let drawing_area = DrawingArea::new();
+    drawing_area.set_size_request(800, 200);
+	drawing_area.set_app_paintable(true);
+    let overlay = Overlay::new();
+
 
         let drawing_area = DrawingArea::new();
         drawing_area.set_size_request(800, 200);
@@ -313,10 +223,13 @@ btn_play.connect_clicked(move |_| {
         );
 		let selection_overlay = Rc::new(RefCell::new(None::<(f64, f64)>));
         let image = Image::new();
+        overlay.set_child(Some(&image));
         let output_img = "test_files/spectrogram.png";
         generate_waveform_image(path.to_str().unwrap(), output_img);
         image.set_from_file(Some(output_img));
 
+		overlay.add_overlay(&drawing_area);
+		
         let undo_stack = Rc::new(RefCell::new(VecDeque::new()));
         let redo_stack = Rc::new(RefCell::new(VecDeque::new()));
         let current_audio_path = Rc::new(RefCell::new(path.to_string_lossy().into_owned()));
@@ -367,19 +280,139 @@ btn_play.connect_clicked(move |_| {
 				gtk::glib::Propagation::Proceed
 			});
 		}
+		
+		//Menubar
+		let menu_bar = gtk::MenuBar::new();
+		let export_menu_item = gtk::MenuItem::with_label("Export");
+		let export_submenu = gtk::Menu::new();
 
+		let export_wav = gtk::MenuItem::with_label("Export as .wav");
+		let export_compressed = gtk::MenuItem::with_label("Export as compressed file");
 
+		export_submenu.add(&export_wav);
+		export_submenu.add(&export_compressed);
+		export_menu_item.set_submenu(Some(&export_submenu));
+		menu_bar.add(&export_menu_item);
+		
+		
+/*
+{
+    let window_clone = Rc::clone(&editor_window);
+    let selected_file_clone = Rc::clone(&selected_file);
 
+export_compressed.connect_activate(move |_| {
+    if let Some(input_path_str) = selected_file_clone.borrow().as_ref() {
+        let input_path = input_path_str.clone();
+
+        // save as
+        let save_dialog = FileChooserDialog::with_buttons(
+            Some("Save Compressed File"),
+            Some(&window_clone),
+            FileChooserAction::Save,
+            &[
+                ("Cancel", ResponseType::Cancel),
+                ("Save", ResponseType::Accept),
+            ],
+        );
+
+        save_dialog.set_do_overwrite_confirmation(true);
+        save_dialog.set_current_name("compressed.txt");
+
+        if save_dialog.run() == ResponseType::Accept {
+            if let Some(save_path) = save_dialog.get_filename() {
+                save_dialog.close();
+
+                // progression
+                let progress_dialog = gtk::Dialog::with_buttons(
+                    Some("Compression"),
+                    Some(&window_clone),
+                    DialogFlags::MODAL,
+                    &[("Cancel", ResponseType::Cancel)],
+                );
+                progress_dialog.set_default_size(300, 100);
+                let label = gtk::Label::new(Some("Compression in progress..."));
+                let content_area = progress_dialog.content_area();
+                content_area.add(&label);
+                progress_dialog.show_all();
+
+                // cancel
+                let cancelled = Rc::new(Cell::new(false));
+                let cancelled_clone = cancelled.clone();
+
+                progress_dialog.connect_response(move |dialog, resp| {
+                    if resp == ResponseType::Cancel {
+                        cancelled_clone.set(true);
+                        dialog.close();
+                    }
+                });
+
+                let window_for_dialog = window_clone.clone();
+                let input_path_clone = input_path.clone();
+                let save_path_string = save_path.to_string_lossy().to_string();
+                let cancelled_for_thread = cancelled.clone();
+
+                thread::spawn(move || {
+                    
+                    compression::main(&input_path_clone, &save_path_string);
+
+                    // window message
+                    glib::idle_add_local(move || {
+                        let done_dialog = gtk::MessageDialog::new(
+                            Some(&window_for_dialog),
+                            DialogFlags::MODAL,
+                            MessageType::Info,
+                            gtk::ButtonsType::Ok,
+                            if cancelled_for_thread.get() {
+                                "Compression annulée."
+                            } else {
+                                "Compression terminée avec succès."
+                            },
+                        );
+                        done_dialog.run();
+                        done_dialog.close();
+                        Continue(false)
+                    });
+                });
+            } else {
+                save_dialog.close();
+            }
+        } else {
+            save_dialog.close();
+        }
+    } else {
+
+        let msg = gtk::MessageDialog::new(
+            Some(&window_clone),
+            DialogFlags::MODAL,
+            MessageType::Warning,
+            gtk::ButtonsType::Ok,
+            "No audio file selected to compress.",
+        );
+        msg.run();
+        msg.close();
+    }
+});
+
+}
+*/
         // Toolbar
         let toolbar = Toolbar::new();
         let btn_cut = ToolButton::new(None::<&gtk::Widget>, Some("✂"));
         let btn_undo = ToolButton::new(None::<&gtk::Widget>, Some("↶"));
         let btn_redo = ToolButton::new(None::<&gtk::Widget>, Some("↷"));
-
-
-        toolbar.add(&btn_cut);
-        toolbar.add(&btn_undo);
+		let btn_play = ToolButton::new(None::<&gtk::Widget>, Some("⏯"));
+		let btn_volume = ToolButton::new(None::<&gtk::Widget>, Some("🕪"));
+		let btn_record = ToolButton::new(None::<&gtk::Widget>, Some("⏺"));	
+		
+		toolbar.add(&btn_undo);
         toolbar.add(&btn_redo);
+        toolbar.add(&btn_cut);
+		toolbar.add(&btn_play);
+		toolbar.add(&btn_record);
+        toolbar.add(&btn_volume);
+        
+        
+        
 
         // CUT
         {
@@ -413,12 +446,12 @@ btn_play.connect_clicked(move |_| {
                     let end_idx = (end as f32 / area_width as f32 * samples.len() as f32) as usize;
 
                     if start_idx >= end_idx || end_idx > samples.len() {
-                        println!("Invalid selection");
+                        println!("Invalid selection"); 
                         return;
                     }
 
                     undo_stack.borrow_mut().push_back(samples.clone());
-                    redo_stack.borrow_mut().clear(); // clear redo stack after new edit
+                    redo_stack.borrow_mut().clear(); 
 
                     let mut cut = samples.clone();
                     cut.drain(start_idx..end_idx);
@@ -442,7 +475,7 @@ btn_play.connect_clicked(move |_| {
 					drawing_area.queue_draw();
                     generate_waveform_image(out_path, "test_files/spectrogram.png");
                     image.set_from_file(Some("test_files/spectrogram.png"));
-                    println!("Cut applied.");
+                    println!("Cut applied."); 
                 }
             });
         }
@@ -484,7 +517,7 @@ btn_play.connect_clicked(move |_| {
 				generate_waveform_image(out_path, "test_files/spectrogram.png");
 				image.set_from_file(Some("test_files/spectrogram.png"));
 				image.queue_draw();
-				println!("Undo applied.");
+				println!("Undo applied."); 
 			}
 		});
 
@@ -523,33 +556,124 @@ btn_play.connect_clicked(move |_| {
 					generate_waveform_image(out_path, "test_files/spectrogram.png");
 					image.set_from_file(Some("test_files/spectrogram.png"));
 					image.queue_draw(); 
-					println!("Redo applied.");
+					println!("Redo applied."); 
 				}
 			});
 
         }
+       
+       // PLAY/PAUSE
+{
+    let current_audio_path = Rc::clone(&current_audio_path);
+    let is_playing = Rc::new(RefCell::new(false));
+    let current_playbin = Rc::new(RefCell::new(None));
 
-        vbox_editor.pack_start(&drawing_area, false, false, 0);
-        vbox_editor.pack_start(&image, true, true, 0);
-        vbox_editor.pack_start(&toolbar, false, false, 0);
-        editor_window.add(&vbox_editor);
-        editor_window.show_all();
+btn_play.connect_clicked(clone!(@strong current_playbin, @strong current_audio_path, @strong is_playing => move |_| {
+    let path = current_audio_path.borrow().clone();
+    if path.is_empty() {
+        println!("No file selected.");
+        return;
     }
-});
 
+    let mut playbin_opt = current_playbin.borrow_mut();
 
+    if playbin_opt.is_none() {
+        gst::init().expect("Failed to initialize GStreamer");
+        let playbin = gst::ElementFactory::make("playbin", None).expect("Could not create playbin");
+        playbin.set_property("uri", &format!("file://{}", path));
+        playbin.set_state(gst::State::Playing).expect("Failed to set state Playing");
 
-    vbox.pack_start(&btn_compress, false, false, 0);
-    vbox.pack_start(&btn_decompress, false, false, 0);
-    vbox.pack_start(&btn_edit, false, false, 0);
-    vbox.pack_start(&btn_play, false, false, 0);
-    vbox.pack_start(&btn_record, false, false, 0);
-    vbox.pack_start(&btn_volume, false, false, 0);
-    window.add(&vbox);
-    window.show_all();
-    window.present();
+        *playbin_opt = Some(playbin);
+        *is_playing.borrow_mut() = true;
+        println!("Started new playback");
+    } else {
+        let playbin = playbin_opt.as_ref().unwrap();
+
+        if *is_playing.borrow() {
+            playbin.set_state(gst::State::Paused).expect("Failed to set state Paused");
+            *is_playing.borrow_mut() = false;
+            println!("Paused");
+        } else {
+            playbin.set_state(gst::State::Playing).expect("Failed to set state Playing");
+            *is_playing.borrow_mut() = true;
+            println!("Resumed");
+        }
+    }
+}));
 }
 
+    // RECORD 
+    {
+        let selected_file_clone = Rc::clone(&selected_file);
+        btn_record.connect_clicked(move |_| {
+            if let Some(file_path) = selected_file_clone.borrow().as_ref() {
+                let output_path = "test_files/recorded_output.wav";
+                let duration_secs = 5;
+                println!("Recording audio to {}", output_path); 
+
+                if let Err(e) = recording::record_wav(output_path, duration_secs) {
+                    eprintln!("Error while recording : {}", e); 
+                }
+            } else {
+                println!("No file selected."); 
+            }
+        });
+    }
+
+    // VOLUME 
+    {
+        let selected_file_clone = Rc::clone(&selected_file);
+        let current_audio_path = Rc::clone(&current_audio_path);
+        let window_clone = editor_window.clone();
+
+        btn_volume.connect_clicked(move |_| {
+        if let Some(file_path) = selected_file_clone.borrow().as_ref() {
+            let dialog = gtk::Dialog::with_buttons(
+                Some("Volume"),
+                Some(&window_clone),
+                gtk::DialogFlags::MODAL,
+                &[("Apply", gtk::ResponseType::Ok), ("Cancel", gtk::ResponseType::Cancel)],
+            );
+            let content_area = dialog.content_area();
+            let entry = gtk::Entry::new();
+            entry.set_placeholder_text(Some("1.0 = normal volume"));
+            content_area.add(&entry);
+            dialog.show_all();
+
+            let path = file_path.clone();
+            let current_audio_path = Rc::clone(&current_audio_path);
+
+            dialog.connect_response(move |dialog, response| {
+                if response == gtk::ResponseType::Ok {
+                    if let Ok(factor) = entry.text().parse::<f32>() {
+                        let output_path = "test_files/volume_output.wav";
+                        let success = volume::adjust_volume(&path, output_path, factor);
+                        
+                        if success.is_ok() {
+                            *current_audio_path.borrow_mut() = output_path.to_string();
+                            println!("Volume adjusted and path updated."); 
+                        } else {
+                            println!("Error while ajusting volume."); 
+                        }
+                    } else {
+                        println!("Invalid entry."); 
+                    }
+                }
+                dialog.close();
+            });
+        } else {
+            println!("No file selected."); 
+        }
+    });
+    }
+
+		vbox_editor.pack_start(&menu_bar, false, false, 0);
+		vbox_editor.pack_start(&toolbar, false, false, 0);
+        vbox_editor.pack_start(&overlay, true, true, 0);
+        
+        editor_window.add(&vbox_editor);
+        editor_window.show_all();
+}
 
 fn generate_waveform_image(input_path: &str, output_path: &str) {
     let reader = hound::WavReader::open(input_path).expect("Failed to open WAV file");
@@ -579,6 +703,5 @@ fn generate_waveform_image_from_samples(samples: &Vec<i16>, output_path: &str) {
         }
     }
 
-    let _ = img.save(output_path);//.expect("Failed to save waveform image");
+    let _ = img.save(output_path);
 }
-
