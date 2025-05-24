@@ -186,7 +186,8 @@ pub fn build_interface(app: &Application)
     let app_clone = value.application().unwrap();
     let value = selected_file_clone.clone();
 	let output_path = Path::new(&path);
-	open_editor_window(output_path, &app_clone, Rc::clone(&value));}});
+	open_editor_window(output_path, &app_clone, Rc::clone(&value));
+    }});
 
 
 	
@@ -739,7 +740,7 @@ fn generate_waveform_image(input_path: &str, output_path: &str) {
         .filter_map(Result::ok)
         .collect();
 
-    generate_waveform_image_from_samples(&samples, output_path);
+    //generate_waveform_image_from_samples(&samples, output_path);
 }
 
 fn generate_waveform_image_from_samples(samples: &Vec<i16>, output_path: &str) {
