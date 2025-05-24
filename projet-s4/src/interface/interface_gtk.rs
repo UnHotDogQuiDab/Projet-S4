@@ -561,7 +561,9 @@ export_compressed.connect_activate(move |_| {
 			});
 
         }
-       
+ 
+//playsound
+
        // PLAY/PAUSE
 {
     let current_audio_path = Rc::clone(&current_audio_path);
@@ -600,7 +602,61 @@ btn_play.connect_clicked(clone!(@strong current_playbin, @strong current_audio_p
         }
     }
 }));
+use glib::ControlFlow;
+let progress_bar = gtk::Scale::new(gtk::Orientation::Horizontal, None::<&gtk::Adjustment>);
+    progress_bar.set_draw_value(false);
+    progress_bar.set_range(0.0, 100.0);
+    progress_bar.set_value(0.0);
+
+    
+    vbox_editor.pack_start(&progress_bar, false, false, 0);
+
+    let current_playbin_for_timeout = Rc::clone(&current_playbin);
+let current_playbin_for_slider = Rc::clone(&current_playbin);
+
+
+let current_playbin_for_close = Rc::clone(&current_playbin);
+
+editor_window.connect_delete_event(move |_, _| {
+    if let Some(playbin) = &*current_playbin_for_close.borrow() {
+        let _ = playbin.set_state(gst::State::Paused);
+        
+    }
+    false.into() 
+});
+
+
+gtk::glib::timeout_add_local(std::time::Duration::from_millis(200), clone!(@weak progress_bar => @default-return glib::ControlFlow::Continue, move || {
+    if let Some(playbin) = &*current_playbin_for_timeout.borrow() {
+        if let Some(pos) = playbin.query_position::<gst::ClockTime>() {
+            if let Some(dur) = playbin.query_duration::<gst::ClockTime>() {
+                let fraction = pos.nseconds() as f64 / dur.nseconds() as f64;
+                progress_bar.set_value(fraction * 100.0);
+            }
+        }
+    }
+    glib::ControlFlow::Continue
+}));
+
+progress_bar.connect_change_value(clone!(@strong current_playbin_for_slider => move |_, _, value| {
+    if let Some(playbin) = &*current_playbin_for_slider.borrow() {
+        if let Some(duration) = playbin.query_duration::<gst::ClockTime>() {
+            let position = (value / 100.0) * duration.nseconds() as f64;
+            let _ = playbin.seek_simple(
+                gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT,
+                gst::ClockTime::from_nseconds(position as u64),
+            );
+        }
+    }
+    false.into()
+}));
+
 }
+
+
+
+//playsound
+
 
     // RECORD 
     {
@@ -670,7 +726,8 @@ btn_play.connect_clicked(clone!(@strong current_playbin, @strong current_audio_p
 		vbox_editor.pack_start(&menu_bar, false, false, 0);
 		vbox_editor.pack_start(&toolbar, false, false, 0);
         vbox_editor.pack_start(&overlay, true, true, 0);
-        
+        let progress_bar = &vbox_editor.children()[0];
+        vbox_editor.reorder_child(progress_bar, 2); 
         editor_window.add(&vbox_editor);
         editor_window.show_all();
 }
