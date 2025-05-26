@@ -6,7 +6,7 @@ use gstreamer::glib::ObjectExt;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-pub fn spawn_audio_player_window(parent: &gtk::ApplicationWindow, _file_path: &str) -> gtk::Window {
+/*pub fn spawn_audio_player_window(parent: &gtk::ApplicationWindow, _file_path: &str) -> gtk::Window {
     // File chooser to select a .wav file
     let file_dialog = FileChooserDialog::new(
         Some("Select WAV file"),
@@ -92,4 +92,4 @@ window.connect_delete_event(move |_, _| {
 
     window.show_all();
     window
-}
+}*/
