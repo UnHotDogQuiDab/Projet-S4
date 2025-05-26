@@ -658,7 +658,7 @@ progress_bar.connect_change_value(clone!(@strong current_playbin_for_slider => m
 
 let selected_file_clone = Rc::clone(&selected_file);
 let current_playbin_clone = Rc::clone(&current_playbin);
-
+let is_playing_clone = Rc::clone(&is_playing);
 btn_open.connect_clicked(move |_| {
     let dialog = gtk::FileChooserDialog::new(
         Some("Select Audio File"),
@@ -673,7 +673,7 @@ btn_open.connect_clicked(move |_| {
     dialog.connect_response({
         let selected_file_clone = Rc::clone(&selected_file_clone);
         let current_playbin_clone = Rc::clone(&current_playbin_clone);
-
+        let is_playing_clone = Rc::clone(&is_playing_clone);
         move |dialog, response| {
             if response == gtk::ResponseType::Ok {
                 if let Some(path) = dialog.filename() {
@@ -682,10 +682,21 @@ btn_open.connect_clicked(move |_| {
                     println!("New file selected: {}", path.display());
 
                     if let Some(ref element) = *current_playbin_clone.borrow() {
-                        let _ = element.set_state(gstreamer::State::Null);
-                        let _ = element.set_property("uri", &uri);
-                        let _ = element.set_state(gstreamer::State::Paused);
-                    } else {
+    let _ = element.set_state(gstreamer::State::Null);
+    let _ = element.set_property("uri", &uri);
+
+    match element.set_state(gstreamer::State::Paused) {
+        Ok(success) => {
+            println!("Playback started successfully: {:?}", success);
+        }
+        Err(err) => {
+            eprintln!("Failed to start playback: {:?}", err);
+        }
+    }
+    *is_playing_clone.borrow_mut() = false;
+    
+}
+                    else {
                         eprintln!("Playbin is not initialized");
                     }
                 }
