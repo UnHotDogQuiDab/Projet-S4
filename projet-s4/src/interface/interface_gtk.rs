@@ -412,7 +412,9 @@ export_compressed.connect_activate(move |_| {
 		toolbar.add(&btn_record);
         toolbar.add(&btn_volume);
         
-        
+       let btn_open = ToolButton::new(None::<&gtk::Widget>, Some("new file"));
+        toolbar.add(&btn_open);
+ 
         
 
         // CUT
@@ -651,6 +653,49 @@ progress_bar.connect_change_value(clone!(@strong current_playbin_for_slider => m
     }
     false.into()
 }));
+
+
+
+let selected_file_clone = Rc::clone(&selected_file);
+let current_playbin_clone = Rc::clone(&current_playbin);
+
+btn_open.connect_clicked(move |_| {
+    let dialog = gtk::FileChooserDialog::new(
+        Some("Select Audio File"),
+        Some(&gtk::Window::new(gtk::WindowType::Toplevel)), 
+        gtk::FileChooserAction::Open,
+    );
+    dialog.add_buttons(&[
+        ("Open", gtk::ResponseType::Ok),
+        ("Cancel", gtk::ResponseType::Cancel),
+    ]);
+
+    dialog.connect_response({
+        let selected_file_clone = Rc::clone(&selected_file_clone);
+        let current_playbin_clone = Rc::clone(&current_playbin_clone);
+
+        move |dialog, response| {
+            if response == gtk::ResponseType::Ok {
+                if let Some(path) = dialog.filename() {
+                    let uri = format!("file://{}", path.to_string_lossy());
+                    *selected_file_clone.borrow_mut() = Some(path.display().to_string());
+                    println!("New file selected: {}", path.display());
+
+                    if let Some(ref element) = *current_playbin_clone.borrow() {
+                        let _ = element.set_state(gstreamer::State::Null);
+                        let _ = element.set_property("uri", &uri);
+                        let _ = element.set_state(gstreamer::State::Paused);
+                    } else {
+                        eprintln!("Playbin is not initialized");
+                    }
+                }
+            }
+            dialog.close();
+        }
+    });
+
+    dialog.show_all();
+});
 
 }
 
