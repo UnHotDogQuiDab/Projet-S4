@@ -645,10 +645,14 @@ progress_bar.connect_change_value(clone!(@strong current_playbin_for_slider => m
     if let Some(playbin) = &*current_playbin_for_slider.borrow() {
         if let Some(duration) = playbin.query_duration::<gst::ClockTime>() {
             let position = (value / 100.0) * duration.nseconds() as f64;
-            let _ = playbin.seek_simple(
+            let seek_result = playbin.seek_simple(
                 gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT,
                 gst::ClockTime::from_nseconds(position as u64),
             );
+
+            if let Err(err) = seek_result {
+                eprintln!("Seek failed: {:?}", err);
+            }
         }
     }
     false.into()

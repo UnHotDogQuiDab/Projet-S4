@@ -1,4 +1,4 @@
-use gtk::prelude::*;
+/*use gtk::prelude::*;
 use gtk::{Button, FileChooserAction, FileChooserDialog, Orientation, ResponseType, Window, WindowType};
 use gstreamer as gst;
 use gst::prelude::*;
@@ -66,6 +66,107 @@ play_pause_button.connect_clicked(move |_| {
     *is_playing_mut = !*is_playing_mut;
 });
 
+use std::cell::Cell;
+use std::rc::Rc;
+use std::time::Duration;
+use glib::clone;
+use glib::ControlFlow;
+use gstreamer::prelude::Cast;
+
+let is_seeking = Rc::new(Cell::new(false));
+
+let adjustment = gtk::Adjustment::new(0.0, 0.0, 1.0, 0.01, 0.1, 0.0);
+let progress_bar = gtk::Scale::new(gtk::Orientation::Horizontal, Some(&adjustment));
+progress_bar.set_draw_value(false);
+vbox.add(&progress_bar);
+
+let playbin_clone = playbin.clone();
+//let playbin_clone2 = playbin.clone();
+
+// Fonction pour fixer la durée max, à appeler au bon moment
+let set_duration = || {
+    if let Some(duration) = playbin_clone.query_duration::<gst::ClockTime>() {
+        let ns = duration.nseconds();
+        if ns > 0 {
+            adjustment.set_upper(ns as f64);
+        }
+    }
+};
+set_duration();
+
+// Gestion des clics pour détecter quand l'utilisateur manipule la barre
+{
+    let is_seeking = is_seeking.clone();
+    progress_bar.connect_button_press_event(move |_, _| {
+        is_seeking.set(true);
+        false.into()
+    });
+}
+
+{
+    let is_seeking = is_seeking.clone();
+    let playbin_clone = playbin_clone.clone();
+    let adjustment = adjustment.clone();
+    progress_bar.connect_button_release_event(move |scale, _| {
+        let value = scale.value();
+
+        playbin_clone.seek_simple(
+            gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT,
+            gst::ClockTime::from_nseconds(value as u64),
+        ).expect("Failed to seek");
+
+        is_seeking.set(false);
+        false.into()
+    });
+}
+
+// Timer de mise à jour régulière
+glib::timeout_add_local(
+    Duration::from_millis(100),
+    clone!(@weak progress_bar, @strong playbin_clone, @strong adjustment, @strong is_seeking => @default-return ControlFlow::Continue, move || {
+        if !is_seeking.get() {
+            if let Some(position) = playbin_clone.query_position::<gst::ClockTime>() {
+                let ns = position.nseconds();
+                if (adjustment.value() - ns as f64).abs() > 10.0 {
+                    adjustment.set_value(ns as f64);
+                }
+            }
+        }
+        ControlFlow::Continue
+    }),
+);
+
+/*
+// Optionnel : pour fixer la durée quand elle change,
+// écoute les messages du bus GStreamer
+use gstreamer::prelude::Continue;
+let playbin_clone2 = playbin_clone2.clone();
+let adjustment = adjustment.clone();
+
+let set_duration = move || {
+    if let Some(duration) = playbin_clone2.query_duration::<gst::ClockTime>() {
+        let ns = duration.nseconds();
+        adjustment.set_upper(ns as f64);
+    }
+};
+
+let bus = playbin_clone.bus().expect("Failed to get bus from playbin");
+let playbin_for_bus = playbin_clone.clone();
+
+bus.add_watch_local(move |_, msg| {
+    use gst::MessageView;
+
+    match msg.view() {
+        gst::MessageView::StateChanged(s) => {
+            if s.src().map(|s| s == *playbin_for_bus.upcast_ref::<gst::Element>()).unwrap_or(false) {
+                set_duration();
+            }
+        }
+        _ => (),
+    }
+
+   Continue(true) 
+}).expect("Failed to add bus watch");
 
     window.add(&vbox);
 
@@ -89,7 +190,7 @@ window.connect_delete_event(move |_, _| {
     playbin_clone.set_state(gst::State::Null).expect("Failed to stop playback on close");
     false.into()
 });
-
+*/
     window.show_all();
     window
-}
+}*/
